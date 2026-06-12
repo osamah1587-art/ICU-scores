@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ICU Scores</title>
+<meta name="description" content="30 critical care scoring systems — APACHE, SOFA, GCS, Wells, PESI, Candida, KDIGO, RIFLE and more. Full clinical decision support.">
+<meta name="theme-color" content="#0B0F1A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ICU Scores">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#0B0F1A;--surface:#131928;--surface2:#1A2035;--border:#1E2640;--border2:#252D45;
+  --tp:#E8ECF4;--ts:#8892AA;--tt:#4A5470;
+  --teal:#00D4AA;--teal-dim:#00D4AA22;--teal-mid:#00D4AA44;
+  --amber:#F5A623;--amber-dim:#F5A62322;
+  --red:#FF5A5A;--red-dim:#FF5A5A22;
+  --blue:#4A9EFF;--blue-dim:#4A9EFF22;
+  --green:#4ADE80;--green-dim:#4ADE8022;
+  --purple:#A78BFA;--purple-dim:#A78BFA22;
+  --mono:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --r1:8px;--r2:12px;--r3:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--tp);-webkit-font-smoothing:antialiased}
+button,input{font-family:var(--font)}
+button{cursor:pointer;border:none;background:none}
+
+/* ── LAYOUT ── */
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+/* Top bar */
+.topbar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);z-index:10}
+.topbar-title{font-size:17px;font-weight:700;letter-spacing:-.3px;color:var(--tp)}
+.topbar-title span{color:var(--teal)}
+.topbar-sub{font-size:11px;color:var(--ts);margin-top:1px}
+.topbar-right{margin-left:auto;display:flex;gap:6px}
+.icon-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:var(--r1);background:var(--surface2);color:var(--ts);font-size:16px;transition:all .15s}
+.icon-btn:hover,.icon-btn.active{background:var(--teal-dim);color:var(--teal)}
+
+/* Monitor bar */
+.monitor{flex-shrink:0;display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+.monitor::-webkit-scrollbar{display:none}
+.mon-item{flex:0 0 auto;padding:6px 14px;text-align:center;border-right:1px solid var(--border)}
+.mon-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--tt);margin-bottom:2px}
+.mon-val{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--teal)}
+.mon-val.amber{color:var(--amber)}
+.mon-val.red{color:var(--red)}
+
+/* Search bar */
+.searchbar{flex-shrink:0;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.search-wrap{position:relative}
+.search-wrap i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--tt);font-size:16px;pointer-events:none}
+#search-input{width:100%;padding:9px 12px 9px 34px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r1);color:var(--tp);font-size:14px;outline:none;transition:border-color .15s}
+#search-input:focus{border-color:var(--teal)}
+#search-input::placeholder{color:var(--tt)}
+
+/* Scroll area */
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.scroll::-webkit-scrollbar{width:4px}
+.scroll::-webkit-scrollbar-track{background:transparent}
+.scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* Score list */
+.list-view{padding:8px 16px 80px}
+.alpha-group{margin-bottom:4px}
+.alpha-label{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--tt);padding:10px 0 6px;text-transform:uppercase}
+.score-card{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);margin-bottom:6px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.score-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0;background:var(--cat-color,var(--teal));opacity:.7}
+.score-card:active{opacity:.75}
+.score-card:hover{border-color:var(--border2);background:var(--surface2)}
+.score-card.fav .fav-star{color:var(--amber)!important}
+.sc-left{flex:1;min-width:0}
+.sc-name{font-size:14px;font-weight:600;color:var(--tp);margin-bottom:2px}
+.sc-desc{font-size:12px;color:var(--ts);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sc-cat{font-size:10px;font-weight:600;padding:3px 7px;border-radius:20px;background:var(--cat-bg,var(--teal-dim));color:var(--cat-color,var(--teal))}
+.fav-star{font-size:16px;color:var(--tt);transition:color .15s}
+
+/* ── DETAIL VIEW ── */
+.detail-view{display:none;flex-direction:column;height:100%}
+.detail-view.active{display:flex}
+.detail-topbar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.back-btn{display:flex;align-items:center;gap:4px;color:var(--teal);font-size:14px;font-weight:500}
+.back-btn i{font-size:18px}
+.detail-title{font-size:15px;font-weight:700;flex:1;text-align:center}
+.detail-fav{font-size:20px;color:var(--tt)}
+.detail-fav.active{color:var(--amber)}
+.detail-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 80px}
+
+/* Score result card */
+.result-hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);padding:18px;margin-bottom:14px;text-align:center;position:relative;overflow:hidden}
+.result-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,var(--hero-color,var(--teal-dim)) 0%,transparent 70%);pointer-events:none}
+.hero-score{font-family:var(--mono);font-size:56px;font-weight:700;color:var(--hero-color,var(--teal));line-height:1;letter-spacing:-2px;margin-bottom:4px}
+.hero-max{font-size:13px;color:var(--ts);margin-bottom:10px}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;background:var(--badge-bg,var(--teal-dim));color:var(--badge-color,var(--teal));margin-bottom:12px}
+.bar-wrap{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--border);margin-bottom:0}
+.bar-fill{height:100%;border-radius:3px;transition:width .4s ease,background .4s}
+
+/* Sections */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);margin-bottom:10px;overflow:hidden}
+.section-hdr{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.section-hdr i.ti-chevron-down{margin-left:auto;color:var(--tt);font-size:14px;transition:transform .2s}
+.section.collapsed .section-hdr i.ti-chevron-down{transform:rotate(-90deg)}
+.section.collapsed .section-body{display:none}
+.section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ts)}
+.section-icon{font-size:16px;color:var(--teal)}
+.section-body{padding:14px}
+
+/* Item rows */
+.item{display:flex;width:100%;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r1);margin-bottom:6px;text-align:left;touch-action:manipulation}
+.item:last-child{margin-bottom:0}
+.item:active{opacity:.75}
+.item.checked{border-color:var(--teal);background:var(--teal-dim)}
+.item-l{flex:1;display:flex;flex-direction:column;gap:2px}
+.item-n{font-size:13px;font-weight:500;color:var(--tp)}
+.item-s{font-size:11px;color:var(--ts)}
+.item-r{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:10px}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--surface2);color:var(--ts);border:1px solid var(--border)}
+.item.checked .badge{background:var(--teal-dim);color:var(--teal);border-color:var(--teal-mid)}
+.chk{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.item.checked .chk{background:var(--teal);border-color:var(--teal)}
+.chk i{font-size:12px;color:#000;display:none}
+.item.checked .chk i{display:block}
+
+/* Numeric inputs */
+.num-group{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.num-group.single{grid-template-columns:1fr}
+.num-field{background:var(--bg);border:1px solid var(--border);border-radius:var(--r1);padding:10px 12px}
+.num-field label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tt);margin-bottom:4px}
+.num-field input{width:100%;background:transparent;border:none;outline:none;color:var(--tp);font-size:15px;font-family:var(--mono);font-weight:600}
+.num-field input::placeholder{color:var(--tt);font-weight:400}
+.num-field.focused{border-color:var(--teal)}
+
+/* Select inputs */
+.sel-field{background:var(--bg);border:1px solid var(--border);border-radius:var(--r1);padding:10px 12px;margin-bottom:6px}
+.sel-field label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tt);margin-bottom:6px}
+.sel-options{display:flex;flex-wrap:wrap;gap:6px}
+.sel-opt{padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--ts);cursor:pointer;transition:all .15s;touch-action:manipulation}
+.sel-opt.active{background:var(--teal-dim);border-color:var(--teal);color:var(--teal)}
+
+/* Rec text */
+.rec-text{font-size:13px;color:var(--tp);line-height:1.7}
+.rec-text strong{color:var(--teal);font-weight:600}
+.rec-text .warn{color:var(--amber)}
+.rec-text .danger{color:var(--red)}
+
+/* Notes */
+.notes-area textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r1);color:var(--tp);font-family:var(--font);font-size:13px;padding:10px 12px;resize:vertical;min-height:80px;line-height:1.6;outline:none;transition:border-color .15s}
+.notes-area textarea:focus{border-color:var(--teal)}
+.notes-area textarea::placeholder{color:var(--tt)}
+
+/* Reset btn */
+.calc-reset{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r1);font-size:13px;font-weight:500;color:var(--ts);margin-top:6px;transition:all .15s}
+.calc-reset:hover{border-color:var(--border2);color:var(--tp)}
+
+/* Ref */
+.ref-text{font-size:12px;color:var(--tt);line-height:1.6;font-style:italic}
+
+/* Install modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:480px;animation:slideUp .25s ease;position:relative}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+.modal-close{position:absolute;top:14px;right:14px;background:var(--surface2);border:none;border-radius:50%;width:28px;height:28px;font-size:15px;color:var(--ts);display:flex;align-items:center;justify-content:center}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.modal p{font-size:13px;color:var(--ts);margin-bottom:16px;line-height:1.5}
+.inst-step{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.inst-num{width:24px;height:24px;border-radius:50%;background:var(--teal);color:#000;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inst-txt{font-size:13px;color:var(--tp);line-height:1.5;padding-top:3px}
+.inst-icon{display:inline-flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:1px 5px;font-size:11px;vertical-align:middle}
+.modal-inst-btn{width:100%;padding:13px;background:var(--teal);color:#000;border:none;border-radius:var(--r1);font-size:14px;font-weight:700;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:7px}
+.modal-inst-btn.hidden{display:none}
+.modal-div{display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--tt);font-size:11px}
+.modal-div::before,.modal-div::after{content:'';flex:1;height:1px;background:var(--border)}
+.modal-div.hidden{display:none}
+
+/* Empty state */
+.empty{text-align:center;padding:48px 24px;color:var(--tt)}
+.empty i{font-size:40px;margin-bottom:12px;display:block}
+.empty p{font-size:14px}
+
+/* Bottom safe area */
+@media(max-width:480px){.list-view,.detail-scroll{padding-bottom:100px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- HOME -->
+  <div id="home-view" style="display:flex;flex-direction:column;height:100%">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">ICU <span>Scores</span></div>
+        <div class="topbar-sub">30 Critical Care Calculators</div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="fav-filter-btn" onclick="toggleFavFilter()" title="Favourites"><i class="ti ti-star"></i></button>
+        <button class="icon-btn" onclick="showInstallModal()" title="Install"><i class="ti ti-download"></i></button>
+      </div>
+    </div>
+    <div class="searchbar">
+      <div class="search-wrap">
+        <i class="ti ti-search"></i>
+        <input type="search" id="search-input" placeholder="Search scores…" oninput="renderList()" autocomplete="off">
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="list-view" id="score-list"></div>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div id="detail-view" class="detail-view">
+    <div class="detail-topbar">
+      <button class="back-btn" onclick="goHome()"><i class="ti ti-chevron-left"></i> Back</button>
+      <div class="detail-title" id="detail-title"></div>
+      <button class="detail-fav" id="detail-fav-btn" onclick="toggleFav(currentScore)"><i class="ti ti-star"></i></button>
+    </div>
+    <div class="detail-scroll" id="detail-body"></div>
+  </div>
+</div>
+
+<!-- Install Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h3 id="modal-title">Add to Home Screen</h3>
+    <p id="modal-sub">Install for quick offline access.</p>
+    <button class="modal-inst-btn hidden" id="modal-inst-btn" onclick="doInstall()"><i class="ti ti-download"></i> Install App</button>
+    <div class="modal-div hidden" id="modal-div">or follow steps</div>
+    <div id="modal-steps"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// SCORE DATABASE
+// ═══════════════════════════════════════════════
+const SCORES = [
+
+// ── APACHE II ──────────────────────────────────
+{id:'apache2',name:'APACHE II',desc:'Severity of illness, ICU mortality prediction',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Knaus WA et al. Crit Care Med 1985;13:818–829.',
+fields:[
+  {type:'num',id:'age',label:'Age (years)',min:0,max:120},
+  {type:'num',id:'temp',label:'Temperature (°C)',min:20,max:45},
+  {type:'num',id:'map',label:'Mean Arterial Pressure (mmHg)',min:0,max:250},
+  {type:'num',id:'hr',label:'Heart Rate (bpm)',min:0,max:300},
+  {type:'num',id:'rr',label:'Respiratory Rate (/min)',min:0,max:80},
+  {type:'num',id:'fio2',label:'FiO₂ (%)',min:21,max:100},
+  {type:'num',id:'pao2',label:'PaO₂ (mmHg) — if FiO₂ < 50%',min:0,max:700},
+  {type:'num',id:'aado2',label:'A-aDO₂ — if FiO₂ ≥ 50%',min:0,max:700},
+  {type:'num',id:'ph',label:'Arterial pH',min:6.5,max:8},
+  {type:'num',id:'na',label:'Serum Na (mEq/L)',min:100,max:200},
+  {type:'num',id:'k',label:'Serum K (mEq/L)',min:1,max:10},
+  {type:'num',id:'cr',label:'Creatinine (mg/dL)',min:0,max:20},
+  {type:'num',id:'hct',label:'Hematocrit (%)',min:0,max:70},
+  {type:'num',id:'wbc',label:'WBC (×10³/µL)',min:0,max:100},
+  {type:'num',id:'gcs_a2',label:'GCS (use actual score)',min:3,max:15},
+  {type:'sel',id:'aki_a2',label:'Acute Renal Failure?',opts:['No','Yes']},
+  {type:'sel',id:'chronic',label:'Chronic health / operation type',opts:['None / Elective surgery','Emergency surgery','Severe organ insufficiency (non-operative or emergency)']},
+],
+calc(v){
+  let s=0;
+  // Age
+  const age=+v.age||0;
+  if(age>=75)s+=6;else if(age>=65)s+=5;else if(age>=55)s+=3;else if(age>=45)s+=2;
+  // Temp
+  const t=+v.temp||0;
+  if(t>=41||t<30)s+=4;else if(t>=39||t<32)s+=3;else if(t>=38.5||t<34)s+=1;else if(t>=36)s+=0;else if(t>=34)s+=1;else if(t>=32)s+=2;
+  // MAP
+  const m=+v.map||0;
+  if(m>=160||m<50)s+=4;else if(m>=130||m<70)s+=3;else if(m>=110||m<70)s+=2;else if(m<70)s+=2;
+  // HR
+  const hr=+v.hr||0;
+  if(hr>=180||hr<40)s+=4;else if(hr>=140||hr<55)s+=3;else if(hr>=110||hr<70)s+=2;
+  // RR
+  const rr=+v.rr||0;
+  if(rr>=50||rr<6)s+=4;else if(rr>=35)s+=3;else if(rr<10)s+=2;else if(rr>=25)s+=1;
+  // Oxygenation
+  const fio2=+v.fio2||0;
+  if(fio2>=50){const aa=+v.aado2||0;if(aa>=500)s+=4;else if(aa>=350)s+=3;else if(aa>=200)s+=2;}
+  else{const po2=+v.pao2||0;if(po2<55)s+=4;else if(po2<61)s+=3;else if(po2<71)s+=1;}
+  // pH
+  const ph=+v.ph||0;
+  if(ph>=7.7||ph<7.15)s+=4;else if(ph>=7.6||ph<7.25)s+=3;else if(ph<7.33)s+=2;else if(ph>=7.5)s+=1;
+  // Na
+  const na=+v.na||0;
+  if(na>=180||na<110)s+=4;else if(na>=160||na<120)s+=3;else if(na>=155||na<130)s+=2;else if(na>=150)s+=1;
+  // K
+  const k=+v.k||0;
+  if(k>=7||k<2.5)s+=4;else if(k>=6||k<3)s+=3;else if(k<3.5)s+=2;else if(k>=5.5)s+=1;
+  // Cr
+  const cr=+v.cr||0;
+  const aki=v.aki_a2==='Yes';
+  if(cr>=3.5)s+=aki?8:4;else if(cr>=2)s+=aki?6:3;else if(cr>=1.5)s+=aki?4:2;else if(cr<0.6)s+=2;
+  // Hct
+  const hct=+v.hct||0;
+  if(hct>=60||hct<20)s+=4;else if(hct>=50||hct<30)s+=2;else if(hct>=46)s+=1;
+  // WBC
+  const wbc=+v.wbc||0;
+  if(wbc>=40||wbc<1)s+=4;else if(wbc>=20||wbc<3)s+=2;else if(wbc>=15)s+=1;
+  // GCS
+  const gcs=+v.gcs_a2||15;
+  s+=(15-gcs);
+  // Chronic
+  if(v.chronic==='Emergency surgery')s+=5;
+  else if(v.chronic==='Severe organ insufficiency (non-operative or emergency)')s+=5;
+  return{score:s,max:71};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=4)return{risk:'Low',mort:'<4%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low severity. Standard ICU monitoring. Reassess daily.'};
+  if(s<=9)return{risk:'Low-Moderate',mort:'~8%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low-moderate severity. Optimize organ support. Daily reassessment.'};
+  if(s<=14)return{risk:'Moderate',mort:'~15%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate severity. Consider goals-of-care discussion. Optimize supportive care.'};
+  if(s<=19)return{risk:'Moderate-High',mort:'~25%',color:'#F5A623',bg:'#F5A62322',rec:'Significant mortality risk. ICU-level organ support. Early specialist involvement.'};
+  if(s<=24)return{risk:'High',mort:'~40%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High mortality risk. Full resuscitation measures unless contraindicated. Consider palliative discussion.'};
+  if(s<=29)return{risk:'Very High',mort:'~55%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Very high mortality risk. Goals-of-care discussion essential.'};
+  return{risk:'Critical',mort:'>75%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Critical severity. Mortality extremely high. Immediate senior review and family discussion.'};
+}},
+
+// ── BISAP ──────────────────────────────────────
+{id:'bisap',name:'BISAP',desc:'Bedside Index of Severity in Acute Pancreatitis',cat:'GI',catColor:'#F5A623',catBg:'#F5A62322',
+ref:'Wu BU et al. Arch Intern Med 2008;168:1619–1625.',
+fields:[
+  {type:'chk',id:'bun_bisap',label:'BUN > 25 mg/dL',sub:'',pts:1},
+  {type:'chk',id:'ms_bisap',label:'Impaired mental status',sub:'GCS < 15 or disorientation',pts:1},
+  {type:'chk',id:'sirs_bisap',label:'SIRS present',sub:'≥2 of: temp <36 or >38°C, HR>90, RR>20 or PaCO₂<32, WBC <4 or >12',pts:1},
+  {type:'chk',id:'age_bisap',label:'Age > 60 years',sub:'',pts:1},
+  {type:'chk',id:'pe_bisap',label:'Pleural effusion on imaging',sub:'',pts:1},
+],
+calc(v){let s=0;['bun_bisap','ms_bisap','sirs_bisap','age_bisap','pe_bisap'].forEach(k=>{if(v[k])s++;});return{score:s,max:5};},
+interpret(r){
+  const s=r.score;
+  if(s<=1)return{risk:'Low',mort:'<1%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low risk pancreatitis. Supportive care: IV fluids, analgesia, NPO with early enteral reintroduction. Can likely be managed in general ward if clinically stable.'};
+  if(s<=2)return{risk:'Moderate',mort:'~2%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate severity. Monitor closely. Aggressive IV fluid resuscitation (Ringer\'s lactate preferred). Nutritional support. Consider ICU step-down.'};
+  if(s<=3)return{risk:'High',mort:'~9%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High risk. ICU admission warranted. CT abdomen to assess necrosis. GI/surgical consult. Avoid prophylactic antibiotics unless infected necrosis suspected.'};
+  return{risk:'Critical',mort:'>17%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Critical severity. ICU mandatory. High risk of organ failure and infected necrosis. Early endoscopy or intervention team involvement. Nutritional support via NJ tube.'};
+}},
+
+// ── CAM-ICU ─────────────────────────────────────
+{id:'camicu',name:'CAM-ICU',desc:'Confusion Assessment Method for ICU delirium',cat:'Neuro',catColor:'#A78BFA',catBg:'#A78BFA22',
+ref:'Ely EW et al. JAMA 2001;286:2703–2710.',
+fields:[
+  {type:'chk',id:'feat1',label:'Feature 1: Acute onset or fluctuating course',sub:'Acute change in mental status from baseline, OR fluctuating behavior over 24h',pts:1},
+  {type:'chk',id:'feat2',label:'Feature 2: Inattention',sub:'Attention Screening Exam (ASE) error score ≥2, or unable to perform',pts:1},
+  {type:'chk',id:'feat3',label:'Feature 3: Altered level of consciousness',sub:'RASS other than 0 at time of assessment',pts:1},
+  {type:'chk',id:'feat4',label:'Feature 4: Disorganized thinking',sub:'≥2 errors on yes/no questions OR unable to follow commands',pts:1},
+],
+calc(v){
+  const f1=v.feat1,f2=v.feat2,f3=v.feat3||v.feat4;
+  const positive=f1&&f2&&f3;
+  return{score:positive?1:0,max:1,raw:[v.feat1,v.feat2,v.feat3,v.feat4]};
+},
+interpret(r){
+  if(r.score===1)return{risk:'CAM-ICU Positive',mort:'Delirium Present',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Delirium confirmed. ABCDEF bundle: Awaken, Breathe, Choose wisely, Delirium, Early mobility, Family. Review all delirogenic medications. Optimize sleep/wake cycles. Avoid benzodiazepines unless alcohol withdrawal. Consider haloperidol if non-pharmacological measures fail and patient is hyperactive/distressed (0.5–1 mg IV). Rule out underlying cause: sepsis, uremia, withdrawal, hypoxia.'};
+  return{risk:'CAM-ICU Negative',mort:'No Delirium',color:'#4ADE80',bg:'#4ADE8022',rec:'Delirium not detected at this assessment. Reassess every shift. Continue preventive measures: early mobilization, sleep hygiene, reorientation, minimize sedation.'};
+}},
+
+// ── CANDIDA SCORE ───────────────────────────────
+{id:'candida',name:'Candida Score',desc:'Risk of invasive candidiasis in ICU patients',cat:'Infection',catColor:'#00D4AA',catBg:'#00D4AA22',
+ref:'Leon C et al. Crit Care Med 2006;34:730–737.',
+fields:[
+  {type:'chk',id:'c_surg',label:'Surgery on ICU admission',sub:'Any surgical procedure at or before ICU admission',pts:1},
+  {type:'chk',id:'c_tpn',label:'Total parenteral nutrition (TPN)',sub:'Active TPN at time of assessment',pts:1},
+  {type:'chk',id:'c_col',label:'Multifocal Candida colonization',sub:'≥2 non-contiguous body sites positive',pts:3},
+  {type:'chk',id:'c_sep',label:'Severe sepsis',sub:'Sepsis with acute organ dysfunction',pts:2},
+],
+calc(v){let s=0;if(v.c_surg)s+=1;if(v.c_tpn)s+=1;if(v.c_col)s+=3;if(v.c_sep)s+=2;return{score:s,max:7};},
+interpret(r){
+  const s=r.score;
+  if(s<3)return{risk:'Low Risk',mort:'Low probability',color:'#4ADE80',bg:'#4ADE8022',rec:'Invasive candidiasis unlikely. Antifungal prophylaxis not routinely indicated. Continue surveillance cultures and monitor clinical trajectory.'};
+  if(s<5)return{risk:'Moderate Risk',mort:'Moderate probability',color:'#F5A623',bg:'#F5A62322',rec:'Consider empirical antifungal. Fluconazole IV: 400 mg loading dose then 200–400 mg/day (non-critically ill, no prior azole exposure). Fluconazole 800 mg/400 mg if critically ill. Send blood cultures ×2. Reassess daily.'};
+  return{risk:'High Risk',mort:'High probability',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Empirical echinocandin recommended. Caspofungin: 70 mg loading then 50 mg/day. Or micafungin 100 mg/day. Blood cultures ×2, ophthalmology review, echocardiogram if candidaemia confirmed. De-escalate to fluconazole when stable and sensitivities available.'};
+}},
+
+// ── CHADS2-VASC ─────────────────────────────────
+{id:'chadsvasc',name:'CHA₂DS₂-VASc',desc:'Stroke risk in non-valvular atrial fibrillation',cat:'Cardiac',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Lip GY et al. Chest 2010;137:263–272.',
+fields:[
+  {type:'chk',id:'cv_chf',label:'Congestive heart failure / LV dysfunction',sub:'',pts:1},
+  {type:'chk',id:'cv_htn',label:'Hypertension',sub:'',pts:1},
+  {type:'chk',id:'cv_age75',label:'Age ≥ 75 years',sub:'Counts as 2 points',pts:2},
+  {type:'chk',id:'cv_dm',label:'Diabetes mellitus',sub:'',pts:1},
+  {type:'chk',id:'cv_stroke',label:'Stroke / TIA / thromboembolism history',sub:'Counts as 2 points',pts:2},
+  {type:'chk',id:'cv_vasc',label:'Vascular disease',sub:'Prior MI, PAD, or aortic plaque',pts:1},
+  {type:'chk',id:'cv_age65',label:'Age 65–74 years',sub:'',pts:1},
+  {type:'sel',id:'cv_sex',label:'Sex',opts:['Male','Female']},
+],
+calc(v){
+  let s=0;
+  if(v.cv_chf)s+=1;if(v.cv_htn)s+=1;if(v.cv_age75)s+=2;if(v.cv_dm)s+=1;
+  if(v.cv_stroke)s+=2;if(v.cv_vasc)s+=1;if(v.cv_age65)s+=1;
+  if(v.cv_sex==='Female')s+=1;
+  return{score:s,max:9};
+},
+interpret(r){
+  const s=r.score;
+  if(s===0)return{risk:'Low',mort:'0% annual stroke risk',color:'#4ADE80',bg:'#4ADE8022',rec:'No antithrombotic therapy recommended.'};
+  if(s===1)return{risk:'Low-Moderate',mort:'~1.3%/year',color:'#F5A623',bg:'#F5A62322',rec:'Consider anticoagulation; individualize based on bleeding risk (HAS-BLED). Note: score of 1 in females only = low risk.'};
+  if(s<=3)return{risk:'Moderate',mort:'~2–4%/year',color:'#F5A623',bg:'#F5A62322',rec:'Oral anticoagulation recommended (DOAC preferred over warfarin). Assess bleeding risk with HAS-BLED.'};
+  return{risk:'High',mort:'>4%/year',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Oral anticoagulation strongly recommended. DOAC preferred. Apixaban, rivaroxaban, or dabigatran. Warfarin if valve disease or CrCl <15 mL/min.'};
+}},
+
+// ── CPIS ────────────────────────────────────────
+{id:'cpis',name:'CPIS',desc:'Clinical Pulmonary Infection Score — VAP diagnosis',cat:'Infection',catColor:'#00D4AA',catBg:'#00D4AA22',
+ref:'Pugin J et al. Am Rev Respir Dis 1991;143:1121–1129.',
+fields:[
+  {type:'sel',id:'cp_temp',label:'Temperature',opts:['36.5–38.4°C (0pts)','38.5–38.9°C (1pt)','≤36 or ≥39°C (2pts)']},
+  {type:'sel',id:'cp_wbc',label:'WBC (×10³/µL)',opts:['4–11 (0pts)','<4 or >11 (1pt)','<4 or >11 + bands ≥50% (2pts)']},
+  {type:'sel',id:'cp_sec',label:'Tracheal secretions',opts:['None (0pts)','Non-purulent (1pt)','Purulent (2pts)']},
+  {type:'sel',id:'cp_ox',label:'Oxygenation: PaO₂/FiO₂',opts:['>240 or ARDS (0pts)','≤240 and no ARDS (2pts)']},
+  {type:'sel',id:'cp_xr',label:'Chest X-ray',opts:['No infiltrate (0pts)','Diffuse/patchy infiltrate (1pt)','Localised infiltrate (2pts)']},
+  {type:'sel',id:'cp_cx',label:'Semiquantitative culture',opts:['No growth (0pts)','Low (1pt)','Moderate/heavy growth (2pts)']},
+],
+calc(v){
+  let s=0;
+  if(v.cp_temp?.includes('1pt'))s+=1;else if(v.cp_temp?.includes('2pts'))s+=2;
+  if(v.cp_wbc?.includes('1pt'))s+=1;else if(v.cp_wbc?.includes('2pts'))s+=2;
+  if(v.cp_sec?.includes('1pt'))s+=1;else if(v.cp_sec?.includes('2pts'))s+=2;
+  if(v.cp_ox?.includes('2pts'))s+=2;
+  if(v.cp_xr?.includes('1pt'))s+=1;else if(v.cp_xr?.includes('2pts'))s+=2;
+  if(v.cp_cx?.includes('1pt'))s+=1;else if(v.cp_cx?.includes('2pts'))s+=2;
+  return{score:s,max:12};
+},
+interpret(r){
+  const s=r.score;
+  if(s<6)return{risk:'VAP Unlikely',mort:'Low probability',color:'#4ADE80',bg:'#4ADE8022',rec:'CPIS <6: VAP unlikely. Consider withholding or stopping antibiotics if cultures negative at 72h. Reassess daily.'};
+  return{risk:'VAP Likely',mort:'High probability',color:'#FF5A5A',bg:'#FF5A5A22',rec:'CPIS ≥6: VAP likely. Start empirical antibiotics based on local resistance patterns. Early-onset VAP (<5 days): cover S. pneumoniae, H. influenzae, MSSA. Late-onset or risk factors for MDR: add MRSA coverage (vancomycin/linezolid) ± anti-pseudomonal coverage. Obtain BAL or mini-BAL cultures before antibiotics if possible. De-escalate at 72h based on cultures.'};
+}},
+
+// ── CURB-65 ─────────────────────────────────────
+{id:'curb65',name:'CURB-65',desc:'Community-acquired pneumonia severity',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Lim WS et al. Thorax 2003;58:377–382.',
+fields:[
+  {type:'chk',id:'cb_c',label:'Confusion',sub:'New onset disorientation to person, place, or time',pts:1},
+  {type:'chk',id:'cb_u',label:'Urea > 7 mmol/L (BUN > 19 mg/dL)',sub:'',pts:1},
+  {type:'chk',id:'cb_r',label:'Respiratory Rate ≥ 30/min',sub:'',pts:1},
+  {type:'chk',id:'cb_b',label:'Low Blood Pressure',sub:'SBP <90 or DBP ≤60 mmHg',pts:1},
+  {type:'chk',id:'cb_65',label:'Age ≥ 65 years',sub:'',pts:1},
+],
+calc(v){let s=0;['cb_c','cb_u','cb_r','cb_b','cb_65'].forEach(k=>{if(v[k])s++;});return{score:s,max:5};},
+interpret(r){
+  const s=r.score;
+  if(s<=1)return{risk:'Low Severity',mort:'<3%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low severity CAP. Consider outpatient treatment if social circumstances allow. Amoxicillin 500 mg TID PO for 5 days. Review at 24–48h.'};
+  if(s===2)return{risk:'Moderate Severity',mort:'~9%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate severity CAP. Hospital admission recommended. Amoxicillin + clarithromycin (or doxycycline if penicillin-allergic). Consider short supervised outpatient therapy with close follow-up.'};
+  if(s===3)return{risk:'Severe',mort:'~17%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Severe CAP. Hospital admission. Consider HDU/ICU. IV co-amoxiclav + clarithromycin (or levofloxacin monotherapy). Cover atypicals.'};
+  return{risk:'Very Severe',mort:'>40%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Very severe CAP. ICU admission. IV piperacillin-tazobactam + azithromycin (or respiratory fluoroquinolone). Add oseltamivir if influenza suspected. Consider steroids in septic shock.'};
+}},
+
+// ── DIC SCORE ───────────────────────────────────
+{id:'dic',name:'DIC Score (ISTH)',desc:'International Society on Thrombosis and Haemostasis',cat:'Haematology',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Taylor FB et al. Thromb Haemost 2001;86:1327–1330.',
+fields:[
+  {type:'sel',id:'dic_plt',label:'Platelet count',opts:['>100 (0pts)','50–100 (1pt)','<50 (2pts)']},
+  {type:'sel',id:'dic_fibdp',label:'Fibrin-related markers (D-dimer / FDP)',opts:['No increase (0pts)','Moderate increase (2pts)','Strong increase (3pts)']},
+  {type:'sel',id:'dic_pt',label:'Prothrombin time prolongation',opts:['<3 sec (0pts)','3–6 sec (1pt)','>6 sec (2pts)']},
+  {type:'sel',id:'dic_fib',label:'Fibrinogen level',opts:['>1 g/L (0pts)','≤1 g/L (1pt)']},
+  {type:'chk',id:'dic_und',label:'Underlying condition known to be associated with DIC',sub:'Sepsis, trauma, malignancy, obstetric complication',pts:0},
+],
+calc(v){
+  let s=0;
+  if(v.dic_plt?.includes('1pt'))s+=1;else if(v.dic_plt?.includes('2pts'))s+=2;
+  if(v.dic_fibdp?.includes('2pts'))s+=2;else if(v.dic_fibdp?.includes('3pts'))s+=3;
+  if(v.dic_pt?.includes('1pt'))s+=1;else if(v.dic_pt?.includes('2pts'))s+=2;
+  if(v.dic_fib?.includes('1pt'))s+=1;
+  return{score:s,max:8};
+},
+interpret(r){
+  const s=r.score;
+  if(s<5)return{risk:'Non-overt DIC',mort:'Compatible',color:'#F5A623',bg:'#F5A62322',rec:'Score <5: compatible with non-overt DIC. Repeat scoring daily. Treat underlying condition aggressively. Monitor CBC, coagulation profile, and fibrinogen every 12–24h.'};
+  return{risk:'Overt DIC',mort:'DIC likely',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Score ≥5: overt DIC. Treat underlying cause. If active bleeding: FFP 15–20 mL/kg, cryoprecipitate if fibrinogen <1.5 g/L, platelets if <50×10⁹/L. If thrombotic predominance without bleeding: consider LMWH at prophylactic/therapeutic dose. Avoid heparin if actively bleeding.'};
+}},
+
+// ── FOUR SCORE ──────────────────────────────────
+{id:'four',name:'FOUR Score',desc:'Full Outline of UnResponsiveness — coma assessment',cat:'Neuro',catColor:'#A78BFA',catBg:'#A78BFA22',
+ref:'Wijdicks EF et al. Ann Neurol 2005;58:585–593.',
+fields:[
+  {type:'sel',id:'fo_eye',label:'Eye response',opts:['4 – Eyelids open, tracking, or blinking to command','3 – Eyelids open but not tracking','2 – Eyelids closed, open to loud voice','1 – Eyelids closed, open to pain','0 – Eyelids remain closed with pain']},
+  {type:'sel',id:'fo_mot',label:'Motor response',opts:['4 – Thumbs-up, fist, or peace sign','3 – Localising to pain','2 – Flexion response to pain','1 – Extension response to pain','0 – No response or generalised myoclonus']},
+  {type:'sel',id:'fo_br',label:'Brainstem reflexes',opts:['4 – Pupil and corneal reflexes present','3 – One pupil wide and fixed','2 – Pupil OR corneal reflexes absent','1 – Pupil AND corneal reflexes absent','0 – Absent pupil, corneal, and cough reflex']},
+  {type:'sel',id:'fo_resp',label:'Respiration',opts:['4 – Not intubated, regular breathing','3 – Not intubated, Cheyne–Stokes pattern','2 – Not intubated, irregular breathing','1 – Intubated, breathing above ventilator rate','0 – Intubated, breathing at ventilator rate or apnea']},
+],
+calc(v){
+  let s=0;
+  ['fo_eye','fo_mot','fo_br','fo_resp'].forEach(k=>{s+=(parseInt(v[k])||0);});
+  return{score:s,max:16};
+},
+interpret(r){
+  const s=r.score;
+  if(s>=13)return{risk:'Mild',mort:'Low',color:'#4ADE80',bg:'#4ADE8022',rec:'Mild impairment. Close neurological monitoring. Identify and treat reversible causes.'};
+  if(s>=9)return{risk:'Moderate',mort:'Moderate',color:'#F5A623',bg:'#F5A62322',rec:'Moderate impairment. Full ICU support. Neurology/neurosurgery consult. CT brain. Consider EEG to exclude non-convulsive status.'};
+  if(s>=5)return{risk:'Severe',mort:'High',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Severe impairment. Aggressive management of raised ICP if suspected. Airway protection essential. Goals-of-care discussion.'};
+  if(s>0)return{risk:'Coma',mort:'Very High',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Deep coma. Score 1–4 with absent brainstem reflexes predicts poor outcome. Consider prognostication workup: EEG, SSEP, MRI brain at 72h post-arrest.'};
+  return{risk:'Brain Death Suspected',mort:'Near 100%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'FOUR Score 0: absent all reflexes and apnea. Brain death protocol may be applicable. Formal brain death determination requires two clinical examinations ± confirmatory test.'};
+}},
+
+// ── GCS ─────────────────────────────────────────
+{id:'gcs',name:'Glasgow Coma Scale',desc:'Neurological status — eye, verbal, motor',cat:'Neuro',catColor:'#A78BFA',catBg:'#A78BFA22',
+ref:'Teasdale G, Jennett B. Lancet 1974;2:81–84.',
+fields:[
+  {type:'sel',id:'gcs_e',label:'Eye opening',opts:['4 – Spontaneous','3 – To voice','2 – To pain','1 – None']},
+  {type:'sel',id:'gcs_v',label:'Verbal response',opts:['5 – Oriented','4 – Confused','3 – Inappropriate words','2 – Incomprehensible sounds','1 – None / intubated (use T)']},
+  {type:'sel',id:'gcs_m',label:'Motor response',opts:['6 – Obeys commands','5 – Localises pain','4 – Withdraws','3 – Abnormal flexion','2 – Extension','1 – None']},
+],
+calc(v){
+  const e=parseInt(v.gcs_e)||0,vr=parseInt(v.gcs_v)||0,m=parseInt(v.gcs_m)||0;
+  return{score:e+vr+m,max:15};
+},
+interpret(r){
+  const s=r.score;
+  if(s>=14)return{risk:'Mild',mort:'Normal/near-normal',color:'#4ADE80',bg:'#4ADE8022',rec:'Mild neurological impairment. Monitor closely. Identify reversible causes.'};
+  if(s>=9)return{risk:'Moderate',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'Moderate impairment (GCS 9–13). Risk of deterioration. Urgent CT brain. Neurosurgery consult if trauma or mass lesion. Secure airway if GCS falling.'};
+  return{risk:'Severe',mort:'High mortality risk',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Severe impairment (GCS ≤8). Airway must be secured (intubate if not already). CT brain urgent. Neurosurgery and neurology consult. ICP monitoring if traumatic brain injury.'};
+}},
+
+// ── HACOR ────────────────────────────────────────
+{id:'hacor',name:'HACOR',desc:'Predict HFNC failure — intubation risk',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Liu Q et al. Crit Care 2020;24:30.',
+fields:[
+  {type:'sel',id:'hc_hr',label:'Heart Rate',opts:['≤120 bpm (0pts)','>120 bpm (1pt)']},
+  {type:'sel',id:'hc_ph',label:'Arterial pH',opts:['≥7.35 (0pts)','7.30–7.34 (1pt)','7.25–7.29 (2pts)','<7.25 (3pts)']},
+  {type:'sel',id:'hc_na',label:'Neurological FOUR Score — eye/motor',opts:['Normal (0pts)','Mild impairment, E3M4 (1pt)','Moderate impairment, E2M3 (2pts)','Severe, E1M1–2 (3pts)']},
+  {type:'sel',id:'hc_ox',label:'Oxygenation: SpO₂/FiO₂ ratio at 1–2h of HFNC',opts:['>200 (0pts)','176–200 (1pt)','151–175 (2pts)','≤150 (3pts)']},
+  {type:'sel',id:'hc_rr',label:'Respiratory Rate',opts:['≤30/min (0pts)','31–35/min (1pt)','>35/min (2pts)']},
+],
+calc(v){
+  let s=0;
+  if(v.hc_hr?.includes('1pt'))s+=1;
+  if(v.hc_ph?.includes('1pt'))s+=1;else if(v.hc_ph?.includes('2pts'))s+=2;else if(v.hc_ph?.includes('3pts'))s+=3;
+  if(v.hc_na?.includes('1pt'))s+=1;else if(v.hc_na?.includes('2pts'))s+=2;else if(v.hc_na?.includes('3pts'))s+=3;
+  if(v.hc_ox?.includes('1pt'))s+=1;else if(v.hc_ox?.includes('2pts'))s+=2;else if(v.hc_ox?.includes('3pts'))s+=3;
+  if(v.hc_rr?.includes('1pt'))s+=1;else if(v.hc_rr?.includes('2pts'))s+=2;
+  return{score:s,max:12};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=4)return{risk:'Low Failure Risk',mort:'~0–15%',color:'#4ADE80',bg:'#4ADE8022',rec:'HACOR ≤4: low risk of HFNC failure. Continue HFNC. Reassess every 1–2h. Target SpO₂ 92–96%, RR <25/min, comfortably speaking in short sentences.'};
+  if(s<=7)return{risk:'Moderate Failure Risk',mort:'~30–50%',color:'#F5A623',bg:'#F5A62322',rec:'HACOR 5–7: moderate failure risk. Prepare for intubation. Senior ICU review. Set clear escalation threshold. Mask NIV trial may be considered briefly.'};
+  return{risk:'High Failure Risk',mort:'>60%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'HACOR >7: high failure risk. Early intubation strongly recommended. Avoid delay — post-intubation outcomes worsen with prolonged HFNC failure. Alert anesthesia team. Pre-oxygenate with HFNC at 60 L/min during RSI.'};
+}},
+
+// ── HAS-BLED ─────────────────────────────────────
+{id:'hasbled',name:'HAS-BLED',desc:'Bleeding risk in anticoagulated AF patients',cat:'Cardiac',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Pisters R et al. Chest 2010;138:1093–1100.',
+fields:[
+  {type:'chk',id:'hb_h',label:'Hypertension',sub:'Uncontrolled, SBP >160 mmHg',pts:1},
+  {type:'chk',id:'hb_a1',label:'Abnormal renal function',sub:'Dialysis, transplant, Cr >200 µmol/L',pts:1},
+  {type:'chk',id:'hb_a2',label:'Abnormal liver function',sub:'Cirrhosis or bilirubin >2× + ALT/AST/ALP >3×',pts:1},
+  {type:'chk',id:'hb_s',label:'Stroke history',sub:'',pts:1},
+  {type:'chk',id:'hb_b',label:'Bleeding history or predisposition',sub:'Anaemia or bleeding diathesis',pts:1},
+  {type:'chk',id:'hb_l',label:'Labile INR',sub:'Unstable / high INR or <60% time in therapeutic range',pts:1},
+  {type:'chk',id:'hb_e',label:'Elderly',sub:'Age >65 years',pts:1},
+  {type:'chk',id:'hb_d1',label:'Drugs: antiplatelet agents or NSAIDs',sub:'',pts:1},
+  {type:'chk',id:'hb_d2',label:'Alcohol (≥8 drinks/week)',sub:'',pts:1},
+],
+calc(v){let s=0;['hb_h','hb_a1','hb_a2','hb_s','hb_b','hb_l','hb_e','hb_d1','hb_d2'].forEach(k=>{if(v[k])s++;});return{score:s,max:9};},
+interpret(r){
+  const s=r.score;
+  if(s<=1)return{risk:'Low Bleeding Risk',mort:'~1%/year',color:'#4ADE80',bg:'#4ADE8022',rec:'Low bleeding risk. Anticoagulation is appropriate if indicated. Use HAS-BLED alongside CHA₂DS₂-VASc — high bleeding risk alone should not preclude anticoagulation if stroke risk is high.'};
+  if(s===2)return{risk:'Moderate Bleeding Risk',mort:'~2%/year',color:'#F5A623',bg:'#F5A62322',rec:'Moderate bleeding risk. Anticoagulation generally still appropriate. Review modifiable risk factors (BP control, stop NSAIDs/antiplatelets if possible).'};
+  return{risk:'High Bleeding Risk',mort:'>3%/year',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High bleeding risk (score ≥3). Does NOT mean anticoagulation is contraindicated. Address all modifiable factors. Reassess at each visit. DOAC preferred over warfarin (lower intracranial bleeding).'};
+}},
+
+// ── HEART SCORE ──────────────────────────────────
+{id:'heart',name:'HEART Score',desc:'Chest pain — MACE risk stratification in ED',cat:'Cardiac',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Backus BE et al. Eur Heart J Acute Cardiovasc Care 2010.',
+fields:[
+  {type:'sel',id:'ht_h',label:'History',opts:['2 – Highly suspicious for ACS','1 – Moderately suspicious','0 – Slightly suspicious']},
+  {type:'sel',id:'ht_e',label:'ECG',opts:['2 – Significant ST depression / LBBB / LVH / repolarisation','1 – Non-specific repolarisation disturbance','0 – Normal']},
+  {type:'sel',id:'ht_a',label:'Age',opts:['2 – ≥65 years','1 – 45–64 years','0 – <45 years']},
+  {type:'sel',id:'ht_r',label:'Risk factors',opts:['2 – ≥3 risk factors OR history of atherosclerotic disease','1 – 1–2 risk factors','0 – No known risk factors']},
+  {type:'sel',id:'ht_t',label:'Troponin',opts:['2 – >3× normal limit','1 – 1–3× normal limit','0 – ≤normal limit']},
+],
+calc(v){
+  let s=0;
+  ['ht_h','ht_e','ht_a','ht_r','ht_t'].forEach(k=>{s+=(parseInt(v[k])||0);});
+  return{score:s,max:10};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=3)return{risk:'Low Risk',mort:'MACE <2%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low risk. Early discharge with follow-up can be considered. No immediate cath lab activation. Serial troponins to rule out late rise.'};
+  if(s<=6)return{risk:'Moderate Risk',mort:'MACE ~12%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate risk. Admit for observation. Serial ECGs and troponins. Cardiology referral. Stress testing or non-invasive imaging within 72h.'};
+  return{risk:'High Risk',mort:'MACE >50%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High risk. Early invasive strategy recommended. Dual antiplatelet therapy (aspirin + P2Y12). Anticoagulation. Cardiology for urgent catheterization.'};
+}},
+
+// ── KDIGO AKI ────────────────────────────────────
+{id:'kdigo',name:'KDIGO AKI',desc:'AKI staging — Kidney Disease: Improving Global Outcomes',cat:'Renal',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'KDIGO AKI Guideline. Kidney Int Suppl 2012;2:1–138.',
+fields:[
+  {type:'sel',id:'kd_cr',label:'Serum Creatinine (vs baseline)',opts:['<1.5× baseline (no AKI)','1.5–1.9× baseline (Stage 1)','2.0–2.9× baseline (Stage 2)','≥3.0× baseline OR Cr ≥4 mg/dL (Stage 3)']},
+  {type:'sel',id:'kd_uo',label:'Urine Output',opts:['≥0.5 mL/kg/h (no AKI)','<0.5 mL/kg/h for 6–12h (Stage 1)','<0.5 mL/kg/h for ≥12h (Stage 2)','<0.3 mL/kg/h for ≥24h OR anuria ≥12h (Stage 3)']},
+  {type:'chk',id:'kd_rrt',label:'Renal Replacement Therapy initiated',sub:'Automatically classifies as Stage 3',pts:0},
+],
+calc(v){
+  let stage=0;
+  const crStage=v.kd_cr?.includes('Stage 1')?1:v.kd_cr?.includes('Stage 2')?2:v.kd_cr?.includes('Stage 3')?3:0;
+  const uoStage=v.kd_uo?.includes('Stage 1')?1:v.kd_uo?.includes('Stage 2')?2:v.kd_uo?.includes('Stage 3')?3:0;
+  stage=Math.max(crStage,uoStage);
+  if(v.kd_rrt)stage=3;
+  return{score:stage,max:3};
+},
+interpret(r){
+  const s=r.score;
+  if(s===0)return{risk:'No AKI',mort:'Baseline',color:'#4ADE80',bg:'#4ADE8022',rec:'No AKI criteria met. Continue nephroprotective measures: avoid nephrotoxins, optimize volume status, dose-adjust all renally-cleared drugs.'};
+  if(s===1)return{risk:'AKI Stage 1',mort:'↑ Mortality',color:'#F5A623',bg:'#F5A62322',rec:'KDIGO Stage 1 AKI. Optimize hemodynamics. Stop nephrotoxins (NSAIDs, contrast, aminoglycosides). Monitor urine output hourly. Urine microscopy. Reassess volume status. Renal ultrasound to exclude obstruction.'};
+  if(s===2)return{risk:'AKI Stage 2',mort:'↑↑ Mortality',color:'#F5A623',bg:'#F5A62322',rec:'KDIGO Stage 2 AKI. Nephrology consult. Strict I/O monitoring. Avoid further nephrotoxic exposure. Nutritional support. Monitor K⁺, HCO₃⁻, phosphate. Evaluate for RRT if not improving.'};
+  return{risk:'AKI Stage 3',mort:'↑↑↑ Mortality',color:'#FF5A5A',bg:'#FF5A5A22',rec:'KDIGO Stage 3 AKI. Urgent nephrology consultation. Discuss RRT initiation criteria: refractory acidosis (pH <7.1), hyperkalemia (K⁺ >6.5), fluid overload ≥10% body weight, uremic complications. CRRT preferred in hemodynamically unstable patients. Avoid diuretics to delay RRT.'};
+}},
+
+// ── mBISAP ───────────────────────────────────────
+{id:'mbisap',name:'mBISAP',desc:'Modified BISAP — includes hemoconcentration',cat:'GI',catColor:'#F5A623',catBg:'#F5A62322',
+ref:'Gao W et al. World J Gastroenterol 2013.',
+fields:[
+  {type:'chk',id:'mb_bun',label:'BUN > 25 mg/dL',sub:'',pts:1},
+  {type:'chk',id:'mb_ms',label:'Impaired mental status (GCS <15)',sub:'',pts:1},
+  {type:'chk',id:'mb_sirs',label:'SIRS criteria ≥ 2',sub:'',pts:1},
+  {type:'chk',id:'mb_age',label:'Age > 60 years',sub:'',pts:1},
+  {type:'chk',id:'mb_pe',label:'Pleural effusion on imaging',sub:'',pts:1},
+  {type:'chk',id:'mb_hct',label:'Hematocrit ≥ 44%',sub:'Indicates hemoconcentration',pts:1},
+],
+calc(v){let s=0;['mb_bun','mb_ms','mb_sirs','mb_age','mb_pe','mb_hct'].forEach(k=>{if(v[k])s++;});return{score:s,max:6};},
+interpret(r){
+  const s=r.score;
+  if(s<=1)return{risk:'Low Severity',mort:'<1%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low risk. Ward management with IV fluids (Ringer\'s lactate 250–500 mL/h initially), analgesia, and early nutrition assessment.'};
+  if(s<=3)return{risk:'Moderate Severity',mort:'~5–10%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate severity. HDU or close monitoring. Aggressive fluid resuscitation. CT abdomen (arterial + venous phase) within 48–72h to assess for necrosis. GI consult.'};
+  return{risk:'High Severity',mort:'>15%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High severity. ICU admission. Organ failure likely. CT-guided or endoscopic drainage if infected necrosis. Multidisciplinary team including GI, surgery, and radiology.'};
+}},
+
+// ── NIHSS ────────────────────────────────────────
+{id:'nihss',name:'NIHSS',desc:'NIH Stroke Scale — acute stroke severity',cat:'Neuro',catColor:'#A78BFA',catBg:'#A78BFA22',
+ref:'Brott T et al. Stroke 1989;20:864–870.',
+fields:[
+  {type:'sel',id:'ni_loc',label:'1a. Level of consciousness',opts:['0 – Alert','1 – Not alert, arousable by minor stimulation','2 – Obtunded, repeated stimulation needed','3 – Unresponsive']},
+  {type:'sel',id:'ni_locq',label:'1b. LOC Questions (month/age)',opts:['0 – Answers both correctly','1 – Answers one correctly','2 – Answers neither']},
+  {type:'sel',id:'ni_locc',label:'1c. LOC Commands',opts:['0 – Performs both tasks','1 – Performs one task','2 – Performs neither']},
+  {type:'sel',id:'ni_gaze',label:'2. Best Gaze',opts:['0 – Normal','1 – Partial gaze palsy','2 – Forced deviation']},
+  {type:'sel',id:'ni_vis',label:'3. Visual Fields',opts:['0 – Normal','1 – Partial hemianopia','2 – Complete hemianopia','3 – Bilateral hemianopia / blind']},
+  {type:'sel',id:'ni_face',label:'4. Facial Palsy',opts:['0 – Normal','1 – Minor paralysis','2 – Partial paralysis','3 – Complete paralysis']},
+  {type:'sel',id:'ni_arml',label:'5a. Left Arm Motor',opts:['0 – No drift (10 sec)','1 – Drift before 10 sec','2 – Falls before 10 sec','3 – No effort against gravity','4 – No movement']},
+  {type:'sel',id:'ni_armr',label:'5b. Right Arm Motor',opts:['0 – No drift','1 – Drift','2 – Falls','3 – No effort','4 – No movement']},
+  {type:'sel',id:'ni_legl',label:'6a. Left Leg Motor',opts:['0 – No drift (5 sec)','1 – Drift','2 – Falls','3 – No effort','4 – No movement']},
+  {type:'sel',id:'ni_legr',label:'6b. Right Leg Motor',opts:['0 – No drift','1 – Drift','2 – Falls','3 – No effort','4 – No movement']},
+  {type:'sel',id:'ni_atax',label:'7. Limb Ataxia',opts:['0 – Absent','1 – Present in one limb','2 – Present in two limbs']},
+  {type:'sel',id:'ni_sens',label:'8. Sensory',opts:['0 – Normal','1 – Mild–moderate loss','2 – Severe loss / absent']},
+  {type:'sel',id:'ni_lang',label:'9. Best Language',opts:['0 – Normal','1 – Mild aphasia','2 – Severe aphasia','3 – Mute / global aphasia']},
+  {type:'sel',id:'ni_dysart',label:'10. Dysarthria',opts:['0 – Normal','1 – Mild–moderate slurring','2 – Severe / mute / intubated']},
+  {type:'sel',id:'ni_extinct',label:'11. Extinction/Inattention',opts:['0 – Normal','1 – Inattention to one modality','2 – Profound hemi-inattention']},
+],
+calc(v){
+  let s=0;
+  ['ni_loc','ni_locq','ni_locc','ni_gaze','ni_vis','ni_face','ni_arml','ni_armr','ni_legl','ni_legr','ni_atax','ni_sens','ni_lang','ni_dysart','ni_extinct'].forEach(k=>{s+=(parseInt(v[k])||0);});
+  return{score:s,max:42};
+},
+interpret(r){
+  const s=r.score;
+  if(s===0)return{risk:'No Stroke',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'Score 0: no neurological deficit.'};
+  if(s<=4)return{risk:'Minor Stroke',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'Minor stroke (1–4). High risk of early deterioration. Admit for monitoring. Dual antiplatelets (aspirin + clopidogrel) for 21 days if not thrombolysed and no AF. Urgent MRI brain and MRA.'};
+  if(s<=15)return{risk:'Moderate Stroke',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'Moderate stroke (5–15). IV tPA if within 4.5h of onset and no contraindications (alteplase 0.9 mg/kg, max 90 mg). Consider mechanical thrombectomy if large vessel occlusion up to 24h. Stroke unit admission.'};
+  if(s<=20)return{risk:'Moderate-Severe Stroke',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Moderate-severe stroke (16–20). IV tPA + mechanical thrombectomy if eligible. ICU or stroke unit. Monitor for cerebral edema and herniation. Avoid hypotension; BP <185/110 before thrombolysis.'};
+  return{risk:'Severe Stroke',mort:'High mortality',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Severe stroke (>20). Mechanical thrombectomy mainstay. Decompressive hemicraniectomy if malignant MCA infarct in selected patients ≤60 years. Goals-of-care discussion early.'};
+}},
+
+// ── PESI ─────────────────────────────────────────
+{id:'pesi',name:'PESI / sPESI',desc:'PE Severity Index — acute PE risk stratification',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Aujesky D et al. Am J Respir Crit Care Med 2005;172:1041. Jiménez D et al. Arch Intern Med 2010.',
+fields:[
+  {type:'num',id:'pe_age',label:'Age (years)',min:0,max:120},
+  {type:'sel',id:'pe_sex',label:'Sex',opts:['Female','Male (+10 pts PESI)']},
+  {type:'chk',id:'pe_ca',label:'Cancer',sub:'',pts:30},
+  {type:'chk',id:'pe_hf',label:'Heart failure (chronic)',sub:'',pts:10},
+  {type:'chk',id:'pe_cpd',label:'Chronic pulmonary disease',sub:'',pts:10},
+  {type:'chk',id:'pe_hr',label:'Heart Rate ≥ 110 bpm',sub:'',pts:20},
+  {type:'chk',id:'pe_sbp',label:'SBP < 100 mmHg',sub:'',pts:30},
+  {type:'chk',id:'pe_rr',label:'Respiratory Rate ≥ 30/min',sub:'',pts:20},
+  {type:'chk',id:'pe_temp',label:'Temperature < 36°C',sub:'',pts:20},
+  {type:'chk',id:'pe_ms',label:'Altered mental status',sub:'Disorientation, lethargy, stupor, coma',pts:60},
+  {type:'chk',id:'pe_spo2',label:'SpO₂ < 90%',sub:'',pts:20},
+],
+calc(v){
+  let pesi=+v.pe_age||0;
+  if(v.pe_sex?.includes('Male'))pesi+=10;
+  if(v.pe_ca)pesi+=30;if(v.pe_hf)pesi+=10;if(v.pe_cpd)pesi+=10;
+  if(v.pe_hr)pesi+=20;if(v.pe_sbp)pesi+=30;if(v.pe_rr)pesi+=20;
+  if(v.pe_temp)pesi+=20;if(v.pe_ms)pesi+=60;if(v.pe_spo2)pesi+=20;
+  // sPESI
+  let spesi=0;
+  if(v.pe_ca)spesi+=1;if(v.pe_hf||v.pe_cpd)spesi+=1;
+  if(v.pe_hr)spesi+=1;if(v.pe_sbp)spesi+=1;if(v.pe_spo2)spesi+=1;
+  const age=+v.pe_age||0;if(age>80)spesi+=1;
+  return{score:pesi,max:300,extra:{spesi}};
+},
+interpret(r){
+  const p=r.score,sp=r.extra?.spesi??0;
+  let pesiClass='',pesiMort='',pesiColor='',pesiBg='';
+  if(p<=65){pesiClass='Class I';pesiMort='≤1.6%';pesiColor='#4ADE80';pesiBg='#4ADE8022';}
+  else if(p<=85){pesiClass='Class II';pesiMort='1.7–3.5%';pesiColor='#4ADE80';pesiBg='#4ADE8022';}
+  else if(p<=105){pesiClass='Class III';pesiMort='3.2–7.1%';pesiColor='#F5A623';pesiBg='#F5A62322';}
+  else if(p<=125){pesiClass='Class IV';pesiMort='4.0–11.4%';pesiColor='#F5A623';pesiBg='#F5A62322';}
+  else{pesiClass='Class V';pesiMort='10–24.5%';pesiColor='#FF5A5A';pesiBg='#FF5A5A22';}
+  const spesiRisk=sp===0?'Low (30-day mort ~1%)':'High (30-day mort ~10.9%)';
+  const spesiColor=sp===0?'#4ADE80':'#FF5A5A';
+  const rec=p<=85||sp===0
+    ?'Low risk PE. Anticoagulation with DOAC (rivaroxaban or apixaban). Consider outpatient/early discharge if sPESI=0, no RV dysfunction on echo, and troponin negative. Rivaroxaban 15 mg BID ×21d then 20 mg OD.'
+    :p<=125
+    ?'Intermediate risk PE. Admit. Full anticoagulation. Echo to assess RV function. Troponin and BNP. Intermediate-high risk (RV dysfunction + positive troponin): consider PERT team activation. Monitor closely for haemodynamic deterioration.'
+    :'High risk/massive PE. ICU admission. IV unfractionated heparin (80 U/kg bolus then 18 U/kg/h). Systemic thrombolysis if no contraindications (alteplase 100 mg over 2h). Catheter-directed thrombolysis or surgical embolectomy if thrombolysis fails or contraindicated. VA-ECMO for refractory shock.';
+  return{risk:`PESI ${pesiClass} | sPESI ${sp}`,mort:`PESI: ${pesiMort} | sPESI: ${spesiRisk}`,color:p<=85?'#4ADE80':p<=125?'#F5A623':'#FF5A5A',bg:pesiBg,rec,extra:`sPESI Score: ${sp} — ${spesiRisk}`};
+}},
+
+// ── RANSON ───────────────────────────────────────
+{id:'ranson',name:'Ranson Criteria',desc:'Acute pancreatitis severity at admission and 48h',cat:'GI',catColor:'#F5A623',catBg:'#F5A62322',
+ref:'Ranson JH et al. Surg Gynecol Obstet 1974;139:69–81.',
+fields:[
+  {type:'chk',id:'ra_age',label:'Age > 55 years (at admission)',sub:'',pts:1},
+  {type:'chk',id:'ra_wbc',label:'WBC > 16,000/µL (at admission)',sub:'',pts:1},
+  {type:'chk',id:'ra_glu',label:'Glucose > 200 mg/dL (at admission)',sub:'',pts:1},
+  {type:'chk',id:'ra_ldh',label:'LDH > 350 IU/L (at admission)',sub:'',pts:1},
+  {type:'chk',id:'ra_ast',label:'AST > 250 IU/L (at admission)',sub:'',pts:1},
+  {type:'chk',id:'ra_hct',label:'Hematocrit drop > 10% (at 48h)',sub:'',pts:1},
+  {type:'chk',id:'ra_bun',label:'BUN rise > 5 mg/dL (at 48h)',sub:'',pts:1},
+  {type:'chk',id:'ra_ca',label:'Calcium < 8 mg/dL (at 48h)',sub:'',pts:1},
+  {type:'chk',id:'ra_pao2',label:'PaO₂ < 60 mmHg (at 48h)',sub:'',pts:1},
+  {type:'chk',id:'ra_def',label:'Base deficit > 4 mEq/L (at 48h)',sub:'',pts:1},
+  {type:'chk',id:'ra_fluid',label:'Fluid sequestration > 6 L (at 48h)',sub:'',pts:1},
+],
+calc(v){
+  let s=0;
+  ['ra_age','ra_wbc','ra_glu','ra_ldh','ra_ast','ra_hct','ra_bun','ra_ca','ra_pao2','ra_def','ra_fluid'].forEach(k=>{if(v[k])s++;});
+  return{score:s,max:11};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=2)return{risk:'Mild',mort:'<5%',color:'#4ADE80',bg:'#4ADE8022',rec:'Mild pancreatitis. Ward management. IV fluids (Ringer\'s lactate), analgesia, NPO then early oral/enteral feeding. Monitor for deterioration.'};
+  if(s<=4)return{risk:'Moderate Severity',mort:'~15–20%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate severity. HDU or close monitoring. Aggressive IV resuscitation. CT abdomen at 48–72h if not improving. GI and surgical input.'};
+  if(s<=6)return{risk:'Severe',mort:'~40%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Severe pancreatitis. ICU admission. High risk of organ failure and necrosis. NJ feeding. Monitor for infection (if fever + rising CRP, CT-guided aspiration). Multidisciplinary team.'};
+  return{risk:'Critical',mort:'>40%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Critical severity. Very high mortality. Full ICU support. Likely infected necrosis — antibiotics (imipenem or meropenem). Endoscopic or surgical necrosectomy may be required. Palliative goals-of-care discussion.'};
+}},
+
+// ── RIFLE ─────────────────────────────────────────
+{id:'rifle',name:'RIFLE Criteria',desc:'AKI staging: Risk, Injury, Failure, Loss, ESRD',cat:'Renal',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Bellomo R et al. Crit Care 2004;8:R204–R212.',
+fields:[
+  {type:'sel',id:'rf_cr',label:'Serum Creatinine change',opts:['No change / <1.5× baseline','1.5× baseline increase — Risk','2× baseline increase — Injury','3× baseline OR Cr ≥4 mg/dL with acute rise — Failure']},
+  {type:'sel',id:'rf_uo',label:'Urine output',opts:['≥0.5 mL/kg/h — Normal','<0.5 mL/kg/h for >6h — Risk','<0.5 mL/kg/h for >12h — Injury','<0.3 mL/kg/h for 24h OR anuria ≥12h — Failure']},
+  {type:'chk',id:'rf_loss',label:'Loss: Complete loss of renal function >4 weeks',sub:'',pts:0},
+  {type:'chk',id:'rf_esrd',label:'ESRD: End-Stage Renal Disease (>3 months)',sub:'',pts:0},
+],
+calc(v){
+  let stage='None';
+  if(v.rf_esrd)stage='ESRD';
+  else if(v.rf_loss)stage='Loss';
+  else{
+    const crStage=v.rf_cr?.includes('Failure')?3:v.rf_cr?.includes('Injury')?2:v.rf_cr?.includes('Risk')?1:0;
+    const uoStage=v.rf_uo?.includes('Failure')?3:v.rf_uo?.includes('Injury')?2:v.rf_uo?.includes('Risk')?1:0;
+    const n=Math.max(crStage,uoStage);
+    stage=n===3?'Failure':n===2?'Injury':n===1?'Risk':'None';
+  }
+  const map={'None':0,'Risk':1,'Injury':2,'Failure':3,'Loss':4,'ESRD':5};
+  return{score:map[stage]||0,max:5,stageName:stage};
+},
+interpret(r){
+  const stage=r.stageName||'None';
+  if(stage==='None')return{risk:'No AKI',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'No AKI by RIFLE criteria. Continue nephroprotective care.'};
+  if(stage==='Risk')return{risk:'RIFLE — Risk',mort:'↑ Hospital mortality',color:'#F5A623',bg:'#F5A62322',rec:'RIFLE Risk: ≈5–10% in-hospital mortality above baseline. Optimize fluids. Avoid nephrotoxins. Hourly UO monitoring. Identify and treat precipitant.'};
+  if(stage==='Injury')return{risk:'RIFLE — Injury',mort:'↑↑ Hospital mortality',color:'#F5A623',bg:'#F5A62322',rec:'RIFLE Injury. Nephrology consult. Strict fluid balance. Evaluate for obstruction. Monitor K⁺, creatinine trend. Begin RRT planning if not improving.'};
+  if(stage==='Failure')return{risk:'RIFLE — Failure',mort:'↑↑↑ Hospital mortality (~50%)',color:'#FF5A5A',bg:'#FF5A5A22',rec:'RIFLE Failure. Urgent nephrology. RRT likely needed. Indications: volume overload, K⁺>6.5, pH<7.1, uremic encephalopathy. CRRT in hemodynamic instability; IHD if stable.'};
+  if(stage==='Loss')return{risk:'RIFLE — Loss',mort:'RRT-dependent >4 weeks',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Complete loss of kidney function >4 weeks. Long-term RRT planning. Renal replacement counseling. Transplant evaluation if recovery unlikely.'};
+  return{risk:'RIFLE — ESRD',mort:'RRT-dependent >3 months',color:'#FF5A5A',bg:'#FF5A5A22',rec:'End-stage renal disease. Permanent RRT or transplant. Nephrology for long-term management.'};
+}},
+
+// ── SAPS II ──────────────────────────────────────
+{id:'saps2',name:'SAPS II',desc:'Simplified Acute Physiology Score — ICU mortality',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Le Gall JR et al. JAMA 1993;270:2957–2963.',
+fields:[
+  {type:'num',id:'sa_age',label:'Age (years)',min:0,max:120},
+  {type:'num',id:'sa_hr',label:'Heart Rate (worst in 24h)',min:0,max:300},
+  {type:'num',id:'sa_sbp',label:'Systolic BP (worst in 24h)',min:0,max:250},
+  {type:'num',id:'sa_temp',label:'Temperature (°C, worst)',min:30,max:45},
+  {type:'num',id:'sa_pf',label:'PaO₂/FiO₂ ratio (if ventilated)',min:0,max:700},
+  {type:'num',id:'sa_uo',label:'Urine output (L/24h)',min:0,max:15},
+  {type:'num',id:'sa_bun',label:'BUN (mg/dL)',min:0,max:200},
+  {type:'sel',id:'sa_gcs2',label:'GCS',opts:['14–15 (0pts)','11–13 (5pts)','9–10 (7pts)','6–8 (13pts)','<6 (26pts)']},
+  {type:'num',id:'sa_k',label:'Potassium (mEq/L)',min:1,max:10},
+  {type:'num',id:'sa_na',label:'Sodium (mEq/L)',min:100,max:200},
+  {type:'num',id:'sa_hco3',label:'HCO₃ (mEq/L)',min:1,max:50},
+  {type:'num',id:'sa_bili',label:'Bilirubin (mg/dL)',min:0,max:50},
+  {type:'num',id:'sa_wbc2',label:'WBC (×10³/µL)',min:0,max:100},
+  {type:'sel',id:'sa_adm',label:'Admission type',opts:['Scheduled surgical (0pts)','Medical (6pts)','Unscheduled surgical (8pts)']},
+  {type:'sel',id:'sa_chron',label:'Chronic disease',opts:['None (0pts)','Metastatic cancer (9pts)','Hematological malignancy (10pts)','AIDS (17pts)']},
+],
+calc(v){
+  let s=0;
+  const age=+v.sa_age||0;
+  if(age<40)s+=0;else if(age<60)s+=7;else if(age<70)s+=12;else if(age<75)s+=15;else if(age<80)s+=16;else s+=18;
+  const hr=+v.sa_hr||0;
+  if(hr<40||hr>=160)s+=11;else if(hr<70)s+=2;else if(hr>=120)s+=4;
+  const sbp=+v.sa_sbp||0;
+  if(sbp<70)s+=13;else if(sbp<100)s+=5;else if(sbp>=200)s+=2;
+  const temp=+v.sa_temp||0;if(temp>=39)s+=3;
+  const pf=+v.sa_pf||0;
+  if(v.sa_pf){if(pf<100)s+=11;else if(pf<200)s+=9;else if(pf<67||pf<100)s+=6;}
+  const uo=+v.sa_uo||0;
+  if(uo<0.5)s+=11;else if(uo<1)s+=4;
+  const bun=+v.sa_bun||0;
+  if(bun>=84)s+=10;else if(bun>=28)s+=6;
+  if(v.sa_gcs2?.includes('5pts'))s+=5;else if(v.sa_gcs2?.includes('7pts'))s+=7;else if(v.sa_gcs2?.includes('13pts'))s+=13;else if(v.sa_gcs2?.includes('26pts'))s+=26;
+  const k=+v.sa_k||0;if(k<3||k>=5)s+=3;
+  const na=+v.sa_na||0;if(na<125)s+=5;else if(na>=145)s+=1;
+  const hco=+v.sa_hco3||0;if(hco<15)s+=6;else if(hco<20)s+=3;
+  const bili=+v.sa_bili||0;if(bili>=6)s+=9;else if(bili>=4)s+=4;
+  const wbc=+v.sa_wbc2||0;if(wbc<1)s+=12;else if(wbc>=20)s+=3;
+  if(v.sa_adm?.includes('6pts'))s+=6;else if(v.sa_adm?.includes('8pts'))s+=8;
+  if(v.sa_chron?.includes('9pts'))s+=9;else if(v.sa_chron?.includes('10pts'))s+=10;else if(v.sa_chron?.includes('17pts'))s+=17;
+  const logit=-7.7631+0.0737*s+0.9971*Math.log(s+1);
+  const mort=Math.round(Math.exp(logit)/(1+Math.exp(logit))*100);
+  return{score:s,max:163,extra:{mort}};
+},
+interpret(r){
+  const s=r.score,m=r.extra?.mort??0;
+  if(s<30)return{risk:'Low',mort:`~${m}%`,color:'#4ADE80',bg:'#4ADE8022',rec:`Predicted hospital mortality ~${m}%. Standard ICU monitoring and supportive care.`};
+  if(s<50)return{risk:'Moderate',mort:`~${m}%`,color:'#F5A623',bg:'#F5A62322',rec:`Predicted hospital mortality ~${m}%. Active organ support. Early goals-of-care discussion.`};
+  if(s<70)return{risk:'High',mort:`~${m}%`,color:'#FF5A5A',bg:'#FF5A5A22',rec:`Predicted hospital mortality ~${m}%. Full organ support. Palliative care input. Family meeting.`};
+  return{risk:'Critical',mort:`~${m}%`,color:'#FF5A5A',bg:'#FF5A5A22',rec:`Predicted hospital mortality ~${m}%. Very high severity. Comprehensive goals-of-care discussion essential.`};
+}},
+
+// ── SOFA ─────────────────────────────────────────
+{id:'sofa',name:'SOFA',desc:'Sequential Organ Failure Assessment',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Vincent JL et al. Intensive Care Med 1996;22:707–710.',
+fields:[
+  {type:'sel',id:'sf_resp',label:'Respiration: PaO₂/FiO₂ (mmHg)',opts:['≥400 (0pts)','300–399 (1pt)','200–299 (2pts)','100–199 with respiratory support (3pts)','<100 with respiratory support (4pts)']},
+  {type:'sel',id:'sf_plt',label:'Coagulation: Platelets (×10³/µL)',opts:['≥150 (0pts)','100–149 (1pt)','50–99 (2pts)','20–49 (3pts)','<20 (4pts)']},
+  {type:'sel',id:'sf_liver',label:'Liver: Bilirubin (mg/dL)',opts:['<1.2 (0pts)','1.2–1.9 (1pt)','2.0–5.9 (2pts)','6.0–11.9 (3pts)','≥12 (4pts)']},
+  {type:'sel',id:'sf_cv',label:'Cardiovascular',opts:['MAP ≥70 mmHg (0pts)','MAP <70 mmHg (1pt)','Dopamine ≤5 or Dobutamine any (2pts)','Dopamine >5 or Epi ≤0.1 or Norepi ≤0.1 (3pts)','Dopamine >15 or Epi >0.1 or Norepi >0.1 (4pts)']},
+  {type:'sel',id:'sf_cns',label:'CNS: GCS',opts:['15 (0pts)','13–14 (1pt)','10–12 (2pts)','6–9 (3pts)','<6 (4pts)']},
+  {type:'sel',id:'sf_renal',label:'Renal: Creatinine (mg/dL) or UO',opts:['<1.2 (0pts)','1.2–1.9 (1pt)','2.0–3.4 (2pts)','3.5–4.9 or UO <500mL/d (3pts)','≥5.0 or UO <200mL/d (4pts)']},
+],
+calc(v){
+  let s=0;
+  ['sf_resp','sf_plt','sf_liver','sf_cv','sf_cns','sf_renal'].forEach(k=>{
+    const val=v[k]||'';
+    if(val.includes('4pts'))s+=4;else if(val.includes('3pts'))s+=3;else if(val.includes('2pts'))s+=2;else if(val.includes('1pt'))s+=1;
+  });
+  return{score:s,max:24};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=6)return{risk:'Low Mortality',mort:'<10%',color:'#4ADE80',bg:'#4ADE8022',rec:'SOFA ≤6: low mortality risk. Organ support as needed. Treat underlying cause. Reassess daily — SOFA trend more important than single value.'};
+  if(s<=9)return{risk:'Moderate',mort:'~15–20%',color:'#F5A623',bg:'#F5A62322',rec:'SOFA 7–9: moderate organ failure. Optimize each failing system. qSOFA ≥2 suggests sepsis — culture-guided antibiotics, fluid resuscitation, vasopressors if MAP <65.'};
+  if(s<=12)return{risk:'High',mort:'~40–50%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'SOFA 10–12: significant multi-organ failure. Aggressive ICU management. Renal replacement if AKI Stage 3. Goals-of-care discussion.'};
+  return{risk:'Critical',mort:'>50%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'SOFA >12: severe multi-organ failure. Very high mortality. Full organ support unless futile. Urgent family meeting and palliative care involvement.'};
+}},
+
+// ── STOP-BANG ────────────────────────────────────
+{id:'stopbang',name:'STOP-BANG',desc:'Obstructive sleep apnoea risk screening',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Chung F et al. Anesthesiology 2008;108:812–821.',
+fields:[
+  {type:'chk',id:'sb_s',label:'Snoring',sub:'Do you snore loudly?',pts:1},
+  {type:'chk',id:'sb_t',label:'Tired',sub:'Do you often feel tired, fatigued, or sleepy during daytime?',pts:1},
+  {type:'chk',id:'sb_o',label:'Observed apnea',sub:'Has anyone observed you stop breathing during sleep?',pts:1},
+  {type:'chk',id:'sb_p',label:'Pressure (BP)',sub:'Do you have or are you treated for high blood pressure?',pts:1},
+  {type:'chk',id:'sb_b',label:'BMI > 35 kg/m²',sub:'',pts:1},
+  {type:'chk',id:'sb_a',label:'Age > 50 years',sub:'',pts:1},
+  {type:'chk',id:'sb_n',label:'Neck circumference > 40 cm',sub:'',pts:1},
+  {type:'sel',id:'sb_g',label:'Gender',opts:['Female','Male (+1pt)']},
+],
+calc(v){
+  let s=0;
+  ['sb_s','sb_t','sb_o','sb_p','sb_b','sb_a','sb_n'].forEach(k=>{if(v[k])s++;});
+  if(v.sb_g==='Male (+1pt)')s+=1;
+  return{score:s,max:8};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=2)return{risk:'Low Risk OSA',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'Low OSA risk. Standard care. Consider formal sleep study only if clinical suspicion remains high.'};
+  if(s<=4)return{risk:'Intermediate Risk',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'Intermediate OSA risk. Polysomnography or home sleep test recommended. Pre-op: plan for PACU monitoring, consider post-op CPAP if positive.'};
+  return{risk:'High Risk OSA',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High OSA risk (score ≥5, or ≥2 from STOP + male/BMI>35/neck>40). Formal sleep study. Pre-operative: consider CPAP. ICU context: prone to hypoxic events during sedation weaning — ensure CPAP available at extubation.'};
+}},
+
+// ── STS-ECMO ─────────────────────────────────────
+{id:'ecmo',name:'SAVE / STS-ECMO Score',desc:'Survival prediction for VA-ECMO in cardiogenic shock',cat:'Cardiac',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Schmidt M et al. Eur Heart J 2015;36:2246–2256. Stocker CF et al.',
+fields:[
+  {type:'num',id:'ec_age',label:'Age (years)',min:0,max:100},
+  {type:'num',id:'ec_weight',label:'Weight (kg)',min:20,max:200},
+  {type:'chk',id:'ec_mi',label:'Acute MI as primary diagnosis',sub:'',pts:0},
+  {type:'chk',id:'ec_myocard',label:'Myocarditis',sub:'',pts:0},
+  {type:'chk',id:'ec_cpcr',label:'Post-cardiotomy shock',sub:'',pts:0},
+  {type:'chk',id:'ec_renal',label:'Acute renal failure pre-ECMO',sub:'Cr >1.5 mg/dL or oliguria',pts:0},
+  {type:'chk',id:'ec_liver',label:'Liver failure pre-ECMO',sub:'Bilirubin >5 mg/dL or coagulopathy',pts:0},
+  {type:'chk',id:'ec_cns',label:'CNS dysfunction pre-ECMO',sub:'Stroke, encephalopathy, altered GCS',pts:0},
+  {type:'chk',id:'ec_cpap_pre',label:'Pre-ECMO cardiac arrest',sub:'',pts:0},
+  {type:'sel',id:'ec_dur',label:'Duration of intubation before ECMO',opts:['Not intubated / <10h','10–29h','≥30h']},
+],
+calc(v){
+  // SAVE score simplified
+  let s=6;
+  const age=+v.ec_age||0;
+  if(age>=63)s-=3;else if(age>=53)s-=2;else if(age>=18)s+=0;
+  const wt=+v.ec_weight||0;
+  if(wt>83)s-=1;
+  if(v.ec_mi)s-=3;if(v.ec_myocard)s+=3;if(v.ec_cpcr)s-=2;
+  if(v.ec_renal)s-=3;if(v.ec_liver)s-=2;if(v.ec_cns)s-=3;
+  if(v.ec_cpap_pre)s-=2;
+  if(v.ec_dur?.includes('10–29'))s-=2;else if(v.ec_dur?.includes('≥30'))s-=4;
+  return{score:s,max:15};
+},
+interpret(r){
+  const s=r.score;
+  if(s>=1)return{risk:'Class I–II (Good)',mort:'48–75% survival',color:'#4ADE80',bg:'#4ADE8022',rec:'Favourable predicted survival. Proceed with VA-ECMO. Aim for early revascularization if MI-related. Daily weaning trials once hemodynamics improved. Target MAP 65–80, lactate normalisation.'};
+  if(s>=-4)return{risk:'Class III (Moderate)',mort:'33–48% survival',color:'#F5A623',bg:'#F5A62322',rec:'Moderate predicted survival. VA-ECMO reasonable. Address all reversible causes. Consider LV unloading (Impella or IABP). ECMO weaning protocol starting 48–72h after stabilisation.'};
+  return{risk:'Class IV–V (Poor)',mort:'<33% survival',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Poor predicted outcome. Careful patient selection. Goals-of-care discussion with family essential before initiation. If ECMO proceeding: bridge-to-decision strategy. Bridge to transplant or LVAD evaluation.'};
+}},
+
+// ── WELLS DVT ────────────────────────────────────
+{id:'wellsdvt',name:'Wells DVT',desc:'Pre-test probability of deep vein thrombosis',cat:'Vascular',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Wells PS et al. Lancet 1997;350:1795–1798.',
+fields:[
+  {type:'chk',id:'wd_ca',label:'Active cancer (treatment within 6 months or palliative)',sub:'',pts:1},
+  {type:'chk',id:'wd_par',label:'Paralysis, paresis, or recent cast immobilisation of leg',sub:'',pts:1},
+  {type:'chk',id:'wd_bed',label:'Bedridden >3 days OR major surgery within 12 weeks',sub:'',pts:1},
+  {type:'chk',id:'wd_tend',label:'Tenderness along deep venous system',sub:'',pts:1},
+  {type:'chk',id:'wd_leg',label:'Entire leg swollen',sub:'',pts:1},
+  {type:'chk',id:'wd_calf',label:'Calf swelling >3 cm compared to other leg',sub:'Measured 10 cm below tibial tuberosity',pts:1},
+  {type:'chk',id:'wd_pit',label:'Pitting oedema (greater in symptomatic leg)',sub:'',pts:1},
+  {type:'chk',id:'wd_col',label:'Collateral superficial veins (non-varicose)',sub:'',pts:1},
+  {type:'chk',id:'wd_prev',label:'Previous DVT documented',sub:'',pts:1},
+  {type:'chk',id:'wd_alt',label:'Alternative diagnosis at least as likely as DVT',sub:'SUBTRACT 2 points',pts:-2},
+],
+calc(v){
+  let s=0;
+  ['wd_ca','wd_par','wd_bed','wd_tend','wd_leg','wd_calf','wd_pit','wd_col','wd_prev'].forEach(k=>{if(v[k])s++;});
+  if(v.wd_alt)s-=2;
+  return{score:s,max:9};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=0)return{risk:'Low Probability',mort:'DVT ~5%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low probability DVT. D-dimer: if negative → DVT excluded. If positive → compression ultrasound (CUS). If CUS negative → no treatment needed.'};
+  if(s<=2)return{risk:'Moderate Probability',mort:'DVT ~17%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate probability. Compression ultrasound (CUS) recommended. If CUS negative and clinical suspicion high: D-dimer and repeat CUS in 1 week.'};
+  return{risk:'High Probability',mort:'DVT ~53%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High probability. Start therapeutic anticoagulation while awaiting imaging. LMWH, fondaparinux, or rivaroxaban. CUS mandatory. If CUS negative and score ≥3: venography or repeat CUS in 72h.'};
+}},
+
+// ── WELLS PE ─────────────────────────────────────
+{id:'wellspe',name:'Wells PE',desc:'Pre-test probability of pulmonary embolism',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Wells PS et al. Ann Intern Med 2001;135:98–107.',
+fields:[
+  {type:'chk',id:'wp_dvt',label:'Clinical signs and symptoms of DVT',sub:'Objective leg swelling, pain with palpation',pts:3},
+  {type:'chk',id:'wp_alt',label:'PE is #1 diagnosis OR equally likely',sub:'',pts:3},
+  {type:'chk',id:'wp_hr',label:'Heart Rate > 100 bpm',sub:'',pts:1.5},
+  {type:'chk',id:'wp_imm',label:'Immobilisation (≥3 days) or surgery within 4 weeks',sub:'',pts:1.5},
+  {type:'chk',id:'wp_dvthx',label:'Previous DVT or PE',sub:'',pts:1.5},
+  {type:'chk',id:'wp_hemo',label:'Haemoptysis',sub:'',pts:1},
+  {type:'chk',id:'wp_ca',label:'Malignancy (active or treated within 6 months)',sub:'',pts:1},
+],
+calc(v){
+  let s=0;
+  if(v.wp_dvt)s+=3;if(v.wp_alt)s+=3;if(v.wp_hr)s+=1.5;if(v.wp_imm)s+=1.5;
+  if(v.wp_dvthx)s+=1.5;if(v.wp_hemo)s+=1;if(v.wp_ca)s+=1;
+  return{score:s,max:12.5};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=1)return{risk:'Low Probability',mort:'PE ~1–3%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low probability PE. D-dimer: if negative → PE excluded (PERC rule may also be applied). If positive → CTPA. No empirical anticoagulation needed while awaiting D-dimer.'};
+  if(s<=4)return{risk:'Moderate Probability',mort:'PE ~12–17%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate probability. CTPA recommended. D-dimer acceptable alternative if CTPA not immediately available and pretest probability is moderate-low. Consider empirical LMWH while awaiting imaging if delay expected.'};
+  return{risk:'High Probability',mort:'PE ~40–67%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High probability PE. CTPA urgently. Start therapeutic anticoagulation immediately (UFH for possible thrombolysis/thrombectomy candidate, LMWH otherwise). If haemodynamically unstable: call PERT team, prepare for thrombolysis or catheter-directed therapy.'};
+}},
+
+]; // end SCORES
+
+// ═══════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════
+let currentScore=null;
+let scoreValues={};
+let favFilter=false;
+
+function getFavs(){try{return JSON.parse(localStorage.getItem('icu_favs')||'[]');}catch{return[];}}
+function setFavs(f){localStorage.setItem('icu_favs',JSON.stringify(f));}
+function isFav(id){return getFavs().includes(id);}
+function toggleFav(id){
+  if(!id)return;
+  const f=getFavs();
+  const i=f.indexOf(id);
+  if(i>=0)f.splice(i,1);else f.push(id);
+  setFavs(f);
+  // Update UI
+  const card=document.querySelector(`.score-card[data-id="${id}"]`);
+  if(card)card.classList.toggle('fav',f.includes(id));
+  const btn=document.getElementById('detail-fav-btn');
+  if(btn){btn.classList.toggle('active',f.includes(id));btn.innerHTML=`<i class="ti ${f.includes(id)?'ti-star-filled':'ti-star'}"></i>`;}
+}
+function toggleFavFilter(){
+  favFilter=!favFilter;
+  document.getElementById('fav-filter-btn').classList.toggle('active',favFilter);
+  renderList();
+}
+
+// ═══════════════════════════════════════════════
+// LIST VIEW
+// ═══════════════════════════════════════════════
+function renderList(){
+  const q=(document.getElementById('search-input').value||'').toLowerCase();
+  const favs=getFavs();
+  let scores=SCORES.filter(s=>{
+    if(favFilter&&!favs.includes(s.id))return false;
+    if(!q)return true;
+    return s.name.toLowerCase().includes(q)||s.desc.toLowerCase().includes(q)||s.cat.toLowerCase().includes(q);
+  }).sort((a,b)=>a.name.localeCompare(b.name));
+
+  const list=document.getElementById('score-list');
+  if(!scores.length){list.innerHTML=`<div class="empty"><i class="ti ti-search-off"></i><p>No scores found for "${q}"</p></div>`;return;}
+
+  // Group by first letter
+  const groups={};
+  scores.forEach(s=>{const l=s.name[0].toUpperCase();if(!groups[l])groups[l]=[];groups[l].push(s);});
+
+  list.innerHTML=Object.keys(groups).sort().map(letter=>`
+    <div class="alpha-group">
+      <div class="alpha-label">${letter}</div>
+      ${groups[letter].map(s=>`
+        <div class="score-card${favs.includes(s.id)?' fav':''}" data-id="${s.id}" style="--cat-color:${s.catColor};--cat-bg:${s.catBg}" onclick="openScore('${s.id}')">
+          <div class="sc-left">
+            <div class="sc-name">${s.name}</div>
+            <div class="sc-desc">${s.desc}</div>
+          </div>
+          <div class="sc-right">
+            <div class="sc-cat" style="background:${s.catBg};color:${s.catColor}">${s.cat}</div>
+            <i class="ti ti-star fav-star"></i>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// DETAIL VIEW
+// ═══════════════════════════════════════════════
+function openScore(id){
+  const sc=SCORES.find(s=>s.id===id);
+  if(!sc)return;
+  currentScore=id;
+  scoreValues={};
+  document.getElementById('detail-title').textContent=sc.name;
+  const favBtn=document.getElementById('detail-fav-btn');
+  favBtn.classList.toggle('active',isFav(id));
+  favBtn.innerHTML=`<i class="ti ${isFav(id)?'ti-star-filled':'ti-star'}"></i>`;
+  document.getElementById('home-view').style.display='none';
+  const dv=document.getElementById('detail-view');
+  dv.style.display='flex';
+  renderDetail(sc);
+  dv.querySelector('.detail-scroll').scrollTop=0;
+}
+
+function goHome(){
+  currentScore=null;
+  document.getElementById('home-view').style.display='flex';
+  document.getElementById('detail-view').style.display='none';
+}
+
+function renderDetail(sc){
+  const body=document.getElementById('detail-body');
+  // Result hero
+  const result=sc.calc(scoreValues);
+  const interp=sc.interpret(result);
+  const pct=Math.min(100,Math.round(result.score/result.max*100));
+  const barColor=interp.color;
+
+  let heroTxt=result.score;
+  if(sc.id==='rifle')heroTxt=result.stageName||'—';
+  if(sc.id==='camicu')heroTxt=result.score===1?'(+)':'(−)';
+
+  body.innerHTML=`
+    <div class="result-hero" style="--hero-color:${interp.color}">
+      <div class="hero-score">${heroTxt}</div>
+      <div class="hero-max">/ ${result.max} points</div>
+      <div class="hero-badge" style="background:${interp.bg};color:${interp.color}"><i class="ti ti-pulse"></i> ${interp.risk}</div>
+      ${interp.mort?`<div style="font-size:12px;color:var(--ts);margin-bottom:10px">${interp.mort}</div>`:''}
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+    </div>
+
+    <div class="section" id="sec-inputs">
+      <div class="section-hdr" onclick="toggleSection('sec-inputs')">
+        <i class="ti ti-calculator section-icon"></i>
+        <span class="section-title">Calculator</span>
+        <i class="ti ti-chevron-down"></i>
+      </div>
+      <div class="section-body">
+        ${renderFields(sc)}
+        <button class="calc-reset" onclick="resetScore()"><i class="ti ti-refresh"></i> Reset</button>
+      </div>
+    </div>
+
+    <div class="section" id="sec-rec">
+      <div class="section-hdr" onclick="toggleSection('sec-rec')">
+        <i class="ti ti-stethoscope section-icon"></i>
+        <span class="section-title">Clinical Recommendation</span>
+        <i class="ti ti-chevron-down"></i>
+      </div>
+      <div class="section-body">
+        <p class="rec-text">${interp.rec}</p>
+        ${interp.extra?`<p class="rec-text" style="margin-top:10px;color:var(--ts)">${interp.extra}</p>`:''}
+      </div>
+    </div>
+
+    <div class="section" id="sec-notes">
+      <div class="section-hdr" onclick="toggleSection('sec-notes')">
+        <i class="ti ti-notes section-icon"></i>
+        <span class="section-title">Clinical Notes</span>
+        <i class="ti ti-chevron-down"></i>
+      </div>
+      <div class="section-body">
+        <div class="notes-area"><textarea placeholder="Add bedside notes, context, or follow-up actions…" id="score-notes" rows="4"></textarea></div>
+      </div>
+    </div>
+
+    <div class="section collapsed" id="sec-ref">
+      <div class="section-hdr" onclick="toggleSection('sec-ref')">
+        <i class="ti ti-book section-icon"></i>
+        <span class="section-title">Reference</span>
+        <i class="ti ti-chevron-down"></i>
+      </div>
+      <div class="section-body">
+        <p class="ref-text">${sc.ref}</p>
+        <p style="font-size:11px;color:var(--tt);margin-top:8px">For clinical decision support only — not a substitute for clinical judgement.</p>
+      </div>
+    </div>
+  `;
+  attachFieldListeners(sc);
+}
+
+function renderFields(sc){
+  let html='';
+  const numFields=sc.fields.filter(f=>f.type==='num');
+  const otherFields=sc.fields.filter(f=>f.type!=='num');
+
+  // Numeric fields in pairs
+  for(let i=0;i<numFields.length;i+=2){
+    const pair=numFields.slice(i,i+2);
+    html+=`<div class="num-group${pair.length===1?' single':''}">`;
+    pair.forEach(f=>{
+      html+=`<div class="num-field" id="nf-${f.id}">
+        <label>${f.label}</label>
+        <input type="number" id="fi-${f.id}" placeholder="—" min="${f.min||0}" max="${f.max||999}" step="any" value="${scoreValues[f.id]||''}">
+      </div>`;
+    });
+    html+='</div>';
+  }
+
+  // Checkbox and select fields
+  otherFields.forEach(f=>{
+    if(f.type==='chk'){
+      const checked=!!scoreValues[f.id];
+      html+=`<button class="item${checked?' checked':''}" id="fi-${f.id}" onclick="toggleItem('${f.id}','${sc.id}')">
+        <div class="item-l">
+          <span class="item-n">${f.label}</span>
+          ${f.sub?`<span class="item-s">${f.sub}</span>`:''}
+        </div>
+        <div class="item-r">
+          ${f.pts!==undefined&&f.pts!==0?`<span class="badge">${f.pts>0?'+':''}${f.pts}</span>`:''}
+          <div class="chk"><i class="ti ti-check"></i></div>
+        </div>
+      </button>`;
+    } else if(f.type==='sel'){
+      const cur=scoreValues[f.id]||'';
+      html+=`<div class="sel-field">
+        <label>${f.label}</label>
+        <div class="sel-options">
+          ${f.opts.map(o=>`<button class="sel-opt${cur===o?' active':''}" onclick="selectOpt('${f.id}','${sc.id}',this,'${o.replace(/'/g,"\\'")}')">
+            ${o.split('–').pop().split('(')[0].trim()||o}
+          </button>`).join('')}
+        </div>
+      </div>`;
+    }
+  });
+  return html;
+}
+
+function attachFieldListeners(sc){
+  sc.fields.filter(f=>f.type==='num').forEach(f=>{
+    const inp=document.getElementById(`fi-${f.id}`);
+    if(inp){
+      inp.addEventListener('input',()=>{
+        scoreValues[f.id]=inp.value;
+        updateResult(sc);
+      });
+      inp.addEventListener('focus',()=>document.getElementById(`nf-${f.id}`)?.classList.add('focused'));
+      inp.addEventListener('blur',()=>document.getElementById(`nf-${f.id}`)?.classList.remove('focused'));
+    }
+  });
+}
+
+function toggleItem(fid,scid){
+  scoreValues[fid]=!scoreValues[fid];
+  const btn=document.getElementById(`fi-${fid}`);
+  if(btn)btn.classList.toggle('checked',!!scoreValues[fid]);
+  const sc=SCORES.find(s=>s.id===scid);
+  if(sc)updateResult(sc);
+}
+
+function selectOpt(fid,scid,el,val){
+  scoreValues[fid]=val;
+  el.closest('.sel-options').querySelectorAll('.sel-opt').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const sc=SCORES.find(s=>s.id===scid);
+  if(sc)updateResult(sc);
+}
+
+function updateResult(sc){
+  const result=sc.calc(scoreValues);
+  const interp=sc.interpret(result);
+  const pct=Math.min(100,Math.round(result.score/result.max*100));
+
+  let heroTxt=result.score;
+  if(sc.id==='rifle')heroTxt=result.stageName||'—';
+  if(sc.id==='camicu')heroTxt=result.score===1?'(+)':'(−)';
+
+  const hero=document.querySelector('.hero-score');
+  if(hero)hero.textContent=heroTxt;
+  const badge=document.querySelector('.hero-badge');
+  if(badge){badge.style.background=interp.bg;badge.style.color=interp.color;badge.innerHTML=`<i class="ti ti-pulse"></i> ${interp.risk}`;}
+  const mort=document.querySelector('.hero-max');
+  // update mort display
+  const mortEl=document.querySelector('.result-hero div[style*="color:var(--ts)"]');
+  if(mortEl&&interp.mort)mortEl.textContent=interp.mort;
+  const bar=document.querySelector('.bar-fill');
+  if(bar){bar.style.width=pct+'%';bar.style.background=interp.color;}
+  const recEl=document.getElementById('sec-rec')?.querySelector('.rec-text');
+  if(recEl)recEl.innerHTML=interp.rec;
+  const hero2=document.querySelector('.result-hero');
+  if(hero2)hero2.style.setProperty('--hero-color',interp.color);
+}
+
+function resetScore(){
+  const sc=SCORES.find(s=>s.id===currentScore);
+  if(!sc)return;
+  scoreValues={};
+  renderDetail(sc);
+}
+
+function toggleSection(id){
+  document.getElementById(id)?.classList.toggle('collapsed');
+}
+
+// ═══════════════════════════════════════════════
+// PWA INSTALL
+// ═══════════════════════════════════════════════
+let dProm=null;
+const ua=navigator.userAgent;
+const isIos=/iphone|ipad|ipod/i.test(ua);
+const isSamsung=/SamsungBrowser/i.test(ua);
+const isEdge=/Edg/i.test(ua);
+const isStandalone=window.matchMedia('(display-mode:standalone)').matches||navigator.standalone;
+
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dProm=e;});
+
+function showInstallModal(){
+  const instBtn=document.getElementById('modal-inst-btn');
+  const div=document.getElementById('modal-div');
+  const steps=document.getElementById('modal-steps');
+  if(dProm){instBtn.classList.remove('hidden');div.classList.remove('hidden');}
+  else{instBtn.classList.add('hidden');div.classList.add('hidden');}
+  let html='';
+  if(isIos){
+    document.getElementById('modal-title').textContent='Add to Home Screen (iOS)';
+    html=`<div class="inst-step"><div class="inst-num">1</div><div class="inst-txt">Tap the <strong>Share</strong> button <span class="inst-icon"><i class="ti ti-share"></i></span> at the bottom</div></div>
+    <div class="inst-step"><div class="inst-num">2</div><div class="inst-txt">Tap <strong>"Add to Home Screen"</strong></div></div>
+    <div class="inst-step"><div class="inst-num">3</div><div class="inst-txt">Tap <strong>Add</strong></div></div>`;
+  }else if(isSamsung){
+    document.getElementById('modal-title').textContent='Add to Home Screen (Samsung)';
+    html=`<div class="inst-step"><div class="inst-num">1</div><div class="inst-txt">Tap <strong>⋮ menu</strong> at the bottom</div></div>
+    <div class="inst-step"><div class="inst-num">2</div><div class="inst-txt">Tap <strong>"Add page to" → "Home screen"</strong></div></div>
+    <div class="inst-step"><div class="inst-num">3</div><div class="inst-txt">Tap <strong>Add</strong></div></div>`;
+  }else if(isEdge){
+    document.getElementById('modal-title').textContent='Add to Home Screen (Edge)';
+    html=`<div class="inst-step"><div class="inst-num">1</div><div class="inst-txt">Tap <strong>··· menu</strong> at the bottom</div></div>
+    <div class="inst-step"><div class="inst-num">2</div><div class="inst-txt">Tap <strong>"Add to phone"</strong></div></div>
+    <div class="inst-step"><div class="inst-num">3</div><div class="inst-txt">Tap <strong>Add</strong></div></div>`;
+  }else{
+    document.getElementById('modal-title').textContent='Add to Home Screen';
+    html=`<div class="inst-step"><div class="inst-num">1</div><div class="inst-txt">Tap the browser <strong>⋮ menu</strong></div></div>
+    <div class="inst-step"><div class="inst-num">2</div><div class="inst-txt">Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></div></div>
+    <div class="inst-step"><div class="inst-num">3</div><div class="inst-txt">Tap <strong>Add</strong></div></div>`;
+  }
+  steps.innerHTML=html;
+  document.getElementById('modal-overlay').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('show');document.body.style.overflow='';}
+function closeModalOutside(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
+function doInstall(){if(!dProm)return;closeModal();dProm.prompt();dProm.userChoice.then(()=>{dProm=null;});}
+window.addEventListener('appinstalled',closeModal);
+
+// ── Service Worker ──
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+// ── Init ──
+renderList();
+</script>
+</body>
+</html>
