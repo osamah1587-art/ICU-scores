@@ -197,7 +197,7 @@ button{cursor:pointer;border:none;background:none}
     <div class="topbar">
       <div>
         <div class="topbar-title">ICU <span>Scores</span></div>
-        <div class="topbar-sub">30 Critical Care Calculators</div>
+        <div class="topbar-sub">48 Critical Care Calculators</div>
       </div>
       <div class="topbar-right">
         <button class="icon-btn" id="fav-filter-btn" onclick="toggleFavFilter()" title="Favourites"><i class="ti ti-star"></i></button>
@@ -970,6 +970,683 @@ interpret(r){
   if(s<=1)return{risk:'Low Probability',mort:'PE ~1–3%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low probability PE. D-dimer: if negative → PE excluded (PERC rule may also be applied). If positive → CTPA. No empirical anticoagulation needed while awaiting D-dimer.'};
   if(s<=4)return{risk:'Moderate Probability',mort:'PE ~12–17%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate probability. CTPA recommended. D-dimer acceptable alternative if CTPA not immediately available and pretest probability is moderate-low. Consider empirical LMWH while awaiting imaging if delay expected.'};
   return{risk:'High Probability',mort:'PE ~40–67%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High probability PE. CTPA urgently. Start therapeutic anticoagulation immediately (UFH for possible thrombolysis/thrombectomy candidate, LMWH otherwise). If haemodynamically unstable: call PERT team, prepare for thrombolysis or catheter-directed therapy.'};
+}},
+
+
+// ── qSOFA ─────────────────────────────────────────
+{id:'qsofa',name:'qSOFA',desc:'Quick Sepsis-related Organ Failure Assessment',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Seymour CW et al. JAMA 2016;315:762–774.',
+fields:[
+  {type:'chk',id:'qs_rr',label:'Respiratory Rate ≥ 22/min',sub:'',pts:1},
+  {type:'chk',id:'qs_ms',label:'Altered mental status',sub:'GCS < 15',pts:1},
+  {type:'chk',id:'qs_sbp',label:'Systolic BP ≤ 100 mmHg',sub:'',pts:1},
+],
+calc(v){let s=0;['qs_rr','qs_ms','qs_sbp'].forEach(k=>{if(v[k])s++;});return{score:s,max:3};},
+interpret(r){
+  const s=r.score;
+  if(s<2)return{risk:'Low Risk',mort:'<3%',color:'#4ADE80',bg:'#4ADE8022',rec:'qSOFA <2: low risk of sepsis-related poor outcome outside ICU. Does not rule out sepsis. Continue clinical assessment. Obtain cultures if infection suspected.'};
+  return{risk:'High Risk',mort:'~10–24%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'qSOFA ≥2: high risk of poor outcome — suspect sepsis. Assess for organ dysfunction (calculate full SOFA). Blood cultures ×2. Lactate. Broad-spectrum antibiotics within 1 hour. 30 mL/kg IV crystalloid if lactate ≥4 or hypotension. ICU consult. Sepsis-3 criteria: suspected infection + SOFA ≥2.'};
+}},
+
+// ── PSI / PORT ────────────────────────────────────
+{id:'psi',name:'PSI / PORT Score',desc:'Pneumonia Severity Index — CAP risk stratification',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Fine MJ et al. N Engl J Med 1997;336:243–250.',
+fields:[
+  {type:'num',id:'ps_age',label:'Age (years)',min:0,max:120},
+  {type:'sel',id:'ps_sex',label:'Sex',opts:['Male','Female (−10 pts)']},
+  {type:'chk',id:'ps_nh',label:'Nursing home resident',sub:'+10 pts',pts:10},
+  {type:'chk',id:'ps_neo',label:'Neoplastic disease',sub:'+30 pts',pts:30},
+  {type:'chk',id:'ps_liver',label:'Liver disease',sub:'+20 pts',pts:20},
+  {type:'chk',id:'ps_chf',label:'Congestive heart failure',sub:'+10 pts',pts:10},
+  {type:'chk',id:'ps_cvd',label:'Cerebrovascular disease',sub:'+10 pts',pts:10},
+  {type:'chk',id:'ps_renal',label:'Renal disease',sub:'+10 pts',pts:10},
+  {type:'chk',id:'ps_ms',label:'Altered mental status',sub:'+20 pts',pts:20},
+  {type:'chk',id:'ps_rr',label:'Respiratory Rate ≥ 30/min',sub:'+20 pts',pts:20},
+  {type:'chk',id:'ps_sbp',label:'SBP < 90 mmHg',sub:'+20 pts',pts:20},
+  {type:'chk',id:'ps_temp',label:'Temperature <35°C or ≥40°C',sub:'+15 pts',pts:15},
+  {type:'chk',id:'ps_hr',label:'Heart Rate ≥ 125 bpm',sub:'+10 pts',pts:10},
+  {type:'chk',id:'ps_ph',label:'Arterial pH < 7.35',sub:'+30 pts',pts:30},
+  {type:'chk',id:'ps_bun',label:'BUN ≥ 30 mg/dL',sub:'+20 pts',pts:20},
+  {type:'chk',id:'ps_na',label:'Sodium < 130 mEq/L',sub:'+20 pts',pts:20},
+  {type:'chk',id:'ps_glu',label:'Glucose ≥ 250 mg/dL',sub:'+10 pts',pts:10},
+  {type:'chk',id:'ps_hct',label:'Hematocrit < 30%',sub:'+10 pts',pts:10},
+  {type:'chk',id:'ps_pao2',label:'PaO₂ < 60 mmHg or SpO₂ < 90%',sub:'+10 pts',pts:10},
+  {type:'chk',id:'ps_eff',label:'Pleural effusion on CXR',sub:'+10 pts',pts:10},
+],
+calc(v){
+  let s=+v.ps_age||0;
+  if(v.ps_sex?.includes('Female'))s-=10;
+  if(v.ps_nh)s+=10;if(v.ps_neo)s+=30;if(v.ps_liver)s+=20;if(v.ps_chf)s+=10;
+  if(v.ps_cvd)s+=10;if(v.ps_renal)s+=10;if(v.ps_ms)s+=20;if(v.ps_rr)s+=20;
+  if(v.ps_sbp)s+=20;if(v.ps_temp)s+=15;if(v.ps_hr)s+=10;if(v.ps_ph)s+=30;
+  if(v.ps_bun)s+=20;if(v.ps_na)s+=20;if(v.ps_glu)s+=10;if(v.ps_hct)s+=10;
+  if(v.ps_pao2)s+=10;if(v.ps_eff)s+=10;
+  return{score:Math.max(0,s),max:395};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=50)return{risk:'Class I',mort:'0.1%',color:'#4ADE80',bg:'#4ADE8022',rec:'PSI Class I (age ≤50, no comorbidities, normal vitals). Very low risk. Outpatient treatment appropriate. Oral amoxicillin or doxycycline for 5 days.'};
+  if(s<=70)return{risk:'Class II',mort:'0.6%',color:'#4ADE80',bg:'#4ADE8022',rec:'PSI Class II. Low risk. Outpatient treatment. Oral beta-lactam ± macrolide. Review at 48h.'};
+  if(s<=90)return{risk:'Class III',mort:'2.8%',color:'#F5A623',bg:'#F5A62322',rec:'PSI Class III. Low-moderate risk. Short inpatient stay or supervised outpatient with close follow-up. Oral or IV antibiotics.'};
+  if(s<=130)return{risk:'Class IV',mort:'8.2%',color:'#F5A623',bg:'#F5A62322',rec:'PSI Class IV. Moderate-high risk. Hospital admission recommended. IV antibiotics: beta-lactam + macrolide or respiratory fluoroquinolone monotherapy.'};
+  return{risk:'Class V',mort:'29.2%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'PSI Class V. High risk. ICU or HDU admission. IV piperacillin-tazobactam + azithromycin (or levofloxacin). Add oseltamivir if influenza season. Consider steroids if refractory septic shock.'};
+}},
+
+// ── RAMSAY SEDATION ────────────────────────────────
+{id:'ramsay',name:'Ramsay Sedation Scale',desc:'Sedation depth assessment in ICU patients',cat:'Neuro',catColor:'#A78BFA',catBg:'#A78BFA22',
+ref:'Ramsay MA et al. BMJ 1974;2:656–659.',
+fields:[
+  {type:'sel',id:'rm_level',label:'Select observed sedation level',opts:[
+    '1 – Anxious, agitated, or restless',
+    '2 – Cooperative, oriented, tranquil (target)',
+    '3 – Responds to commands only',
+    '4 – Brisk response to light glabellar tap or loud sound',
+    '5 – Sluggish response to light glabellar tap or loud sound',
+    '6 – No response to stimulation',
+  ]},
+],
+calc(v){const n=parseInt(v.rm_level)||0;return{score:n,max:6};},
+interpret(r){
+  const s=r.score;
+  if(s===0)return{risk:'Not assessed',mort:'',color:'#9198A3',bg:'#9198A322',rec:'Select a sedation level to assess.'};
+  if(s===1)return{risk:'Inadequate Sedation',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Level 1: agitated. Increase sedation. Identify and treat pain first (analgesia-first approach). Consider midazolam 1–2 mg IV bolus or propofol infusion titration. Assess for delirium (CAM-ICU).'};
+  if(s===2)return{risk:'Optimal Sedation',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'Level 2: target sedation for most mechanically ventilated patients. Maintain current infusion rates. Daily sedation holds (SAT) if appropriate. Reassess every 2–4h.'};
+  if(s===3)return{risk:'Adequate — Monitor',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'Level 3: appropriate for post-procedural or selected patients. If not the intended target, consider lightening sedation. Perform daily awakening trials.'};
+  if(s===4)return{risk:'Deep Sedation',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'Level 4: deep sedation — acceptable for raised ICP, status epilepticus, or acute ARDS (prone positioning). Otherwise consider reducing infusion. Assess for tolerance and accumulation (esp. midazolam in renal failure).'};
+  if(s===5)return{risk:'Very Deep Sedation',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'Level 5: very deep. Only appropriate for specific indications (burst suppression, refractory ICP, pentobarbital coma). Risk of prolonged mechanical ventilation. Daily reassessment mandatory.'};
+  return{risk:'Unresponsive',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Level 6: no response. Verify medication doses. Consider EEG to exclude non-convulsive seizures. Assess for drug accumulation, metabolic encephalopathy, or brain injury. Pupillary and brainstem reflex exam.'};
+}},
+
+// ── RASS ──────────────────────────────────────────
+{id:'rass',name:'RASS',desc:'Richmond Agitation-Sedation Scale',cat:'Neuro',catColor:'#A78BFA',catBg:'#A78BFA22',
+ref:'Sessler CN et al. JAMA 2002;288:2983–2991.',
+fields:[
+  {type:'sel',id:'rass_l',label:'Select observed RASS level',opts:[
+    '+4 – Combative: violent, immediate danger to staff',
+    '+3 – Very agitated: pulls tubes, aggressive',
+    '+2 – Agitated: frequent non-purposeful movement',
+    '+1 – Restless: anxious, not aggressive',
+    '0 – Alert and calm (target for most patients)',
+    '-1 – Drowsy: not fully alert but sustained awakening >10s',
+    '-2 – Light sedation: briefly awakens to voice (<10s)',
+    '-3 – Moderate sedation: movement or eye opening to voice, no eye contact',
+    '-4 – Deep sedation: movement to physical stimulus only',
+    '-5 – Unarousable: no response to voice or physical stimulus',
+  ]},
+],
+calc(v){
+  const map={'+4':4,'+3':3,'+2':2,'+1':1,'0':0,'-1':-1,'-2':-2,'-3':-3,'-4':-4,'-5':-5};
+  const key=Object.keys(map).find(k=>v.rass_l?.startsWith(k));
+  const n=key!==undefined?map[key]:99;
+  return{score:n===99?0:n+5,max:9,raw:n};
+},
+interpret(r){
+  const n=r.raw??0;
+  if(r.score===0&&r.raw===undefined)return{risk:'Not assessed',mort:'',color:'#9198A3',bg:'#9198A322',rec:'Select a RASS level to assess.'};
+  if(n>=2)return{risk:'Agitated / Combative',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:`RASS ${n>0?'+':''}${n}: significant agitation. Assess and treat pain first (NRS/CPOT). Rule out delirium (CAM-ICU), hypoxia, urinary retention, constipation. If pain-controlled: escalate sedation (propofol or dexmedetomidine preferred over benzodiazepines). Target RASS 0 to −2 for most ventilated patients.`};
+  if(n===1)return{risk:'Restless',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'RASS +1: restless. Analgesia-first. Reassess every 2h. Mild anxiolysis if needed. Maintain spontaneous breathing.'};
+  if(n===0)return{risk:'Alert and Calm',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'RASS 0: target state for most non-sedated or lightly sedated ICU patients. Maintain current regimen. Perform SAT/SBT bundle if on mechanical ventilation.'};
+  if(n===-1||n===-2)return{risk:'Light Sedation',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:`RASS ${n}: light sedation — recommended target for most mechanically ventilated patients. Reduces ICU-LOS and delirium compared to deeper targets. Daily SAT trials. Early mobilization.`};
+  if(n===-3||n===-4)return{risk:'Deep Sedation',mort:'',color:'#F5A623',bg:'#F5A62322',rec:`RASS ${n}: deep sedation. Only appropriate for: acute severe ARDS (prone), raised ICP, status epilepticus, post-cardiac arrest targeted temperature management. Otherwise lighten to RASS 0/−1. Risk: prolonged ventilation, delirium, ICU weakness.`};
+  return{risk:'Unarousable',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'RASS −5: unarousable. Check drug accumulation (midazolam, fentanyl). EEG for non-convulsive status. Metabolic screen. Neurological assessment including pupils and brainstem reflexes.'};
+}},
+
+// ── MURRAY LUNG INJURY ────────────────────────────
+{id:'murray',name:'Murray Lung Injury Score',desc:'Acute Lung Injury / ARDS severity assessment',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Murray JF et al. Am Rev Respir Dis 1988;138:720–723.',
+fields:[
+  {type:'sel',id:'mu_xr',label:'Chest X-Ray consolidation',opts:['No alveolar consolidation (0pts)','Consolidation in 1 quadrant (1pt)','Consolidation in 2 quadrants (2pts)','Consolidation in 3 quadrants (3pts)','Consolidation in all 4 quadrants (4pts)']},
+  {type:'sel',id:'mu_pf',label:'PaO₂/FiO₂ ratio',opts:['≥300 (0pts)','225–299 (1pt)','175–224 (2pts)','100–174 (3pts)','<100 (4pts)']},
+  {type:'sel',id:'mu_peep',label:'PEEP (cmH₂O)',opts:['≤5 (0pts)','6–8 (1pt)','9–11 (2pts)','12–14 (3pts)','≥15 (4pts)']},
+  {type:'sel',id:'mu_crs',label:'Respiratory System Compliance (mL/cmH₂O)',opts:['≥80 (0pts)','60–79 (1pt)','40–59 (2pts)','20–39 (3pts)','≤19 (4pts)']},
+],
+calc(v){
+  let total=0,count=0;
+  ['mu_xr','mu_pf','mu_peep','mu_crs'].forEach(k=>{
+    if(v[k]){count++;
+    if(v[k].includes('1pt'))total+=1;else if(v[k].includes('2pts'))total+=2;
+    else if(v[k].includes('3pts'))total+=3;else if(v[k].includes('4pts'))total+=4;}
+  });
+  const score=count>0?Math.round((total/count)*100)/100:0;
+  return{score,max:4,display:score.toFixed(2)};
+},
+interpret(r){
+  const s=r.score;
+  if(s===0)return{risk:'No Lung Injury',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'Score 0: no lung injury. Standard ventilatory management if intubated.'};
+  if(s<=1)return{risk:'Mild-Moderate ALI',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'Score 0.1–1: mild-moderate acute lung injury. Lung-protective ventilation: TV 6 mL/kg IBW, plateau pressure <30 cmH₂O. Optimize PEEP. Prone positioning if PaO₂/FiO₂ <150 despite optimization.'};
+  if(s<=2.5)return{risk:'Moderate ARDS',mort:'~30–40%',color:'#F5A623',bg:'#F5A62322',rec:'Score 1–2.5: moderate ARDS. Lung-protective ventilation mandatory. PEEP titration per ARDSNet table. Prone >16h/day if PaO₂/FiO₂ <150. Neuromuscular blockade if P-SILI suspected. Consider ECMO referral if refractory.'};
+  return{risk:'Severe ARDS',mort:'>40%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Score >2.5: severe ARDS. All above measures. ECMO referral criteria: PaO₂/FiO₂ <80 on FiO₂ 100% and PEEP ≥15 for >6h, or pH <7.25 with PaCO₂ >60 for >6h. Dexamethasone (6–20 mg/day) per DEXA-ARDS protocol.'};
+}},
+
+// ── KING'S COLLEGE ALF ────────────────────────────
+{id:'kcc',name:"King's College Criteria",desc:'Acute liver failure — transplant criteria',cat:'GI',catColor:'#F5A623',catBg:'#F5A62322',
+ref:'O\'Grady JG et al. Gastroenterology 1989;97:439–445.',
+fields:[
+  {type:'sel',id:'kc_etiol',label:'Aetiology',opts:['Paracetamol (acetaminophen) overdose','Non-paracetamol cause']},
+  // Paracetamol criteria
+  {type:'chk',id:'kc_ph',label:'[Paracetamol] Arterial pH < 7.30',sub:'After resuscitation, regardless of grade of encephalopathy',pts:0},
+  {type:'chk',id:'kc_all3',label:'[Paracetamol] All 3 criteria present:',sub:'PT >100s (INR >6.5) AND Creatinine >300 µmol/L AND Grade III–IV encephalopathy',pts:0},
+  // Non-paracetamol criteria
+  {type:'chk',id:'kc_pt',label:'[Non-paracetamol] PT > 100s (INR > 6.5)',sub:'Any grade of encephalopathy',pts:0},
+  {type:'chk',id:'kc_any3',label:'[Non-paracetamol] Any 3 of 5 criteria:',sub:'Age <10 or >40 | Aetiology: non-A/B hepatitis, halothane, idiosyncratic drug | Duration of jaundice to encephalopathy >7d | PT >50s | Bilirubin >300 µmol/L',pts:0},
+],
+calc(v){
+  const para=v.kc_etiol?.includes('Paracetamol');
+  let met=false;
+  if(para){if(v.kc_ph||v.kc_all3)met=true;}
+  else{if(v.kc_pt||v.kc_any3)met=true;}
+  return{score:met?1:0,max:1,para};
+},
+interpret(r){
+  if(r.score===0)return{risk:'Criteria Not Met',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'King\'s College Criteria not met. Continue aggressive medical management: N-acetylcysteine (even in non-paracetamol ALF), lactulose, rifaximin, FFP for active bleeding only, renal replacement if AKI Stage 3, nutritional support. Reassess every 6–12h.'};
+  const para=r.para;
+  return{risk:'Transplant Criteria Met',mort:'>90% without transplant',color:'#FF5A5A',bg:'#FF5A5A22',rec:`King's College Criteria ${para?'(paracetamol)':'(non-paracetamol)'} MET. Urgent liver transplant evaluation. Contact transplant centre immediately. Continue: N-acetylcysteine infusion (paracetamol: standard 21h protocol; non-paracetamol: consider 72h protocol). Manage complications: cerebral oedema (mannitol 0.5–1 g/kg, ICP monitoring), coagulopathy (only treat if active bleeding), renal failure (CRRT preferred), hypoglycaemia (10% dextrose infusion), infection surveillance.`};
+}},
+
+// ── CHILD-PUGH ─────────────────────────────────────
+{id:'childpugh',name:'Child-Pugh Score',desc:'Cirrhosis severity and prognosis',cat:'GI',catColor:'#F5A623',catBg:'#F5A62322',
+ref:'Child CG, Turcotte JG. Surgery and portal hypertension. Major Probl Clin Surg 1964;1:1–85. Pugh RN et al. Br J Surg 1973;60:646–649.',
+fields:[
+  {type:'sel',id:'cp2_bili',label:'Bilirubin (µmol/L)',opts:['<34 (1pt)','34–50 (2pts)','>50 (3pts)']},
+  {type:'sel',id:'cp2_alb',label:'Albumin (g/L)',opts:['>35 (1pt)','28–35 (2pts)','<28 (3pts)']},
+  {type:'sel',id:'cp2_inr',label:'INR / Prothrombin time',opts:['INR <1.7 / PT <4s prolonged (1pt)','INR 1.7–2.3 / PT 4–6s (2pts)','INR >2.3 / PT >6s (3pts)']},
+  {type:'sel',id:'cp2_asc',label:'Ascites',opts:['None (1pt)','Mild/controlled (2pts)','Moderate/refractory (3pts)']},
+  {type:'sel',id:'cp2_enc',label:'Hepatic Encephalopathy',opts:['None (1pt)','Grade I–II (2pts)','Grade III–IV (3pts)']},
+],
+calc(v){
+  let s=0;
+  ['cp2_bili','cp2_alb','cp2_inr','cp2_asc','cp2_enc'].forEach(k=>{
+    if(v[k]?.includes('1pt'))s+=1;else if(v[k]?.includes('2pts'))s+=2;else if(v[k]?.includes('3pts'))s+=3;
+  });
+  return{score:s,max:15};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=6)return{risk:'Child-Pugh A',mort:'1-year survival ~100%',color:'#4ADE80',bg:'#4ADE8022',rec:'Class A: well-compensated cirrhosis. 1-year survival ~100%, 2-year ~85%. Perioperative mortality 5–10%. Surveillance: 6-monthly AFP + liver ultrasound for HCC. Upper GI endoscopy for varices. Avoid nephrotoxins. Na restriction if ascites.'};
+  if(s<=9)return{risk:'Child-Pugh B',mort:'1-year survival ~80%',color:'#F5A623',bg:'#F5A62322',rec:'Class B: significant functional compromise. 1-year survival ~80%, 2-year ~60%. Perioperative mortality 30%. Optimise: diuretics (spironolactone ± furosemide), lactulose/rifaximin for encephalopathy, non-selective beta-blocker for varices (propranolol/carvedilol). Transplant evaluation.'};
+  return{risk:'Child-Pugh C',mort:'1-year survival ~45%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Class C: decompensated cirrhosis. 1-year survival ~45%, 2-year ~35%. Perioperative mortality up to 80% — surgery contraindicated unless life-saving. Urgent transplant listing. Manage: refractory ascites (serial paracentesis + albumin 8 g/L drained), SBP prophylaxis (norfloxacin or ciprofloxacin), HRS (terlipressin + albumin), TIPS if recurrent variceal bleeding.'};
+}},
+
+// ── MELD SCORE ─────────────────────────────────────
+{id:'meld',name:'MELD Score',desc:'Model for End-stage Liver Disease — 90-day mortality',cat:'GI',catColor:'#F5A623',catBg:'#F5A62322',
+ref:'Malinchoc M et al. Hepatology 2000;31:864–871. Kamath PS et al. Hepatology 2001;33:464–470.',
+fields:[
+  {type:'num',id:'ml_cr',label:'Creatinine (mg/dL)',min:0.1,max:20},
+  {type:'num',id:'ml_bili',label:'Bilirubin (mg/dL)',min:0.1,max:100},
+  {type:'num',id:'ml_inr',label:'INR',min:0.5,max:20},
+  {type:'num',id:'ml_na',label:'Sodium (mEq/L) — for MELD-Na',min:100,max:160},
+  {type:'sel',id:'ml_rrt',label:'On dialysis or RRT (≥2×/week)?',opts:['No','Yes (set Cr = 4.0)']},
+],
+calc(v){
+  let cr=+v.ml_cr||1;
+  if(v.ml_rrt==='Yes (set Cr = 4.0)')cr=4.0;
+  cr=Math.min(Math.max(cr,1),4);
+  const bili=Math.min(Math.max(+v.ml_bili||1,1),40);
+  const inr=Math.min(Math.max(+v.ml_inr||1,1),10);
+  const meld=Math.round(3.78*Math.log(bili)+11.2*Math.log(inr)+9.57*Math.log(cr)+6.43);
+  const na=Math.min(Math.max(+v.ml_na||130,125),137);
+  const meldna=Math.min(meld+1.32*(137-na)-0.033*meld*(137-na),40);
+  return{score:Math.max(6,meld),max:40,extra:{meldna:Math.round(Math.max(6,meldna))}};
+},
+interpret(r){
+  const s=r.score,mn=r.extra?.meldna??s;
+  if(s<10)return{risk:'Low',mort:'1.9% (90-day)',color:'#4ADE80',bg:'#4ADE8022',rec:`MELD ${s} / MELD-Na ${mn}: low mortality risk. 90-day mortality ~1.9%. Standard outpatient management. 6-monthly surveillance. Transplant listing threshold typically MELD ≥15.`};
+  if(s<20)return{risk:'Moderate',mort:'6–20% (90-day)',color:'#F5A623',bg:'#F5A62322',rec:`MELD ${s} / MELD-Na ${mn}: moderate risk. 90-day mortality ~6–20%. Optimize: diuresis, lactulose, rifaximin, nutrition. Discuss transplant listing (MELD ≥15 generally qualifies). Close follow-up every 1–3 months.`};
+  if(s<30)return{risk:'High',mort:'20–52% (90-day)',color:'#FF5A5A',bg:'#FF5A5A22',rec:`MELD ${s} / MELD-Na ${mn}: high risk. 90-day mortality ~20–52%. Active transplant listing essential. Hospitalise if decompensated. Treat precipitants: infection (SBP, UTI), GI bleeding, AKI. TIPS if recurrent variceal haemorrhage.`};
+  return{risk:'Critical',mort:'>52% (90-day)',color:'#FF5A5A',bg:'#FF5A5A22',rec:`MELD ${s} / MELD-Na ${mn}: critical severity. 90-day mortality >52%. Urgent transplant. If listed, likely Status 1B. ICU-level care. Manage multi-organ failure: CRRT for HRS/AKI, vasopressors for hepatorenal physiology, mechanical ventilation if encephalopathy grade III–IV. Consider MARS/SPAD as bridge.`};
+}},
+
+// ── ROCKALL SCORE ──────────────────────────────────
+{id:'rockall',name:'Rockall Score',desc:'Upper GI bleeding — rebleeding and mortality risk',cat:'GI',catColor:'#F5A623',catBg:'#F5A62322',
+ref:'Rockall TA et al. Gut 1996;38:316–321.',
+fields:[
+  {type:'sel',id:'ro_age',label:'Age',opts:['<60 years (0pts)','60–79 years (1pt)','≥80 years (2pts)']},
+  {type:'sel',id:'ro_shock',label:'Shock',opts:['No shock: SBP ≥100, HR <100 (0pts)','Tachycardia: SBP ≥100, HR ≥100 (1pt)','Hypotension: SBP <100 (2pts)']},
+  {type:'sel',id:'ro_comorbid',label:'Comorbidity',opts:['None (0pts)','Any comorbidity (2pts)','Renal failure, liver failure, or disseminated malignancy (3pts)']},
+  {type:'sel',id:'ro_dx',label:'Endoscopic diagnosis',opts:['Mallory–Weiss or no lesion, no stigmata (0pts)','All other diagnoses (1pt)','GI malignancy (2pts)']},
+  {type:'sel',id:'ro_stig',label:'Major stigmata of recent haemorrhage',opts:['None, or dark spot only (0pts)','Blood in upper GI tract, adherent clot, visible or spurting vessel (2pts)']},
+],
+calc(v){
+  let s=0;
+  if(v.ro_age?.includes('1pt'))s+=1;else if(v.ro_age?.includes('2pts'))s+=2;
+  if(v.ro_shock?.includes('1pt'))s+=1;else if(v.ro_shock?.includes('2pts'))s+=2;
+  if(v.ro_comorbid?.includes('2pts'))s+=2;else if(v.ro_comorbid?.includes('3pts'))s+=3;
+  if(v.ro_dx?.includes('1pt'))s+=1;else if(v.ro_dx?.includes('2pts'))s+=2;
+  if(v.ro_stig?.includes('2pts'))s+=2;
+  return{score:s,max:11};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=2)return{risk:'Low Risk',mort:'Rebleed <5%, Mort <1%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low risk UGIB. Pre-endoscopy Rockall ≤2 (without endoscopic score): consider early discharge with outpatient endoscopy within 24h. IV PPI (omeprazole/pantoprazole 80 mg bolus then 8 mg/h). Resuscitate to Hb >70 g/L (or >80 if cardiovascular disease).'};
+  if(s<=4)return{risk:'Moderate Risk',mort:'Rebleed ~15%, Mort ~5%',color:'#F5A623',bg:'#F5A62322',rec:'Moderate risk. Urgent endoscopy within 24h. IV PPI infusion. Correct coagulopathy (INR >2.5: vitamin K ± FFP). Transfusion threshold Hb <70 g/L. ICU or HDU monitoring. GI and surgical standby.'};
+  return{risk:'High Risk',mort:'Rebleed >40%, Mort >10%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High risk UGIB. Urgent out-of-hours endoscopy. Endoscopic haemostasis: adrenaline injection + thermal or mechanical therapy. If endoscopy fails: interventional radiology (embolisation) or surgical haemostasis. Somatostatin analogue (octreotide) if variceal suspected. Massive transfusion protocol if haemodynamically unstable: 1:1:1 (pRBC:FFP:platelets).'};
+}},
+
+// ── TISS-28 ────────────────────────────────────────
+{id:'tiss28',name:'TISS-28',desc:'Therapeutic Intervention Scoring System — nursing workload',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Miranda DR et al. Intensive Care Med 1996;22:267–273.',
+fields:[
+  {type:'chk',id:'ti_pa',label:'Pulmonary artery catheter',sub:'3 pts',pts:3},
+  {type:'chk',id:'ti_cv',label:'CVP monitoring',sub:'2 pts',pts:2},
+  {type:'chk',id:'ti_iabp',label:'Intra-aortic balloon pump',sub:'8 pts',pts:8},
+  {type:'chk',id:'ti_hemo',label:'Haemofiltration / dialysis',sub:'3 pts',pts:3},
+  {type:'chk',id:'ti_icp',label:'ICP monitoring',sub:'4 pts',pts:4},
+  {type:'chk',id:'ti_vent',label:'Mechanical ventilation (any mode)',sub:'5 pts',pts:5},
+  {type:'chk',id:'ti_supv',label:'Supplemental ventilatory support (CPAP/HFNC)',sub:'2 pts',pts:2},
+  {type:'chk',id:'ti_vaso',label:'Vasoactive drug infusion (any)',sub:'3 pts',pts:3},
+  {type:'chk',id:'ti_multi_vaso',label:'Multiple vasoactive drugs (≥2)',sub:'4 pts — use instead of single vaso',pts:4},
+  {type:'chk',id:'ti_iv',label:'Multiple IV infusions (>3 separate IV lines)',sub:'3 pts',pts:3},
+  {type:'chk',id:'ti_pn',label:'Parenteral nutrition (TPN)',sub:'3 pts',pts:3},
+  {type:'chk',id:'ti_en',label:'Enteral nutrition (NGT/NJT)',sub:'2 pts',pts:2},
+  {type:'chk',id:'ti_spec',label:'Specific interventions in ICU (intubation, cardioversion, endoscopy, emergency surgery)',sub:'5 pts',pts:5},
+  {type:'chk',id:'ti_spec_out',label:'Specific interventions outside ICU (imaging, procedure)',sub:'2 pts',pts:2},
+  {type:'chk',id:'ti_drain',label:'Active drainage of >2 sites',sub:'3 pts',pts:3},
+  {type:'chk',id:'ti_urine',label:'Quantitative urine output (urinary catheter)',sub:'2 pts',pts:2},
+  {type:'chk',id:'ti_blood',label:'Active management of metabolic acidosis/alkalosis',sub:'4 pts',pts:4},
+  {type:'chk',id:'ti_art',label:'Arterial line',sub:'5 pts',pts:5},
+  {type:'chk',id:'ti_arrest',label:'CPR or chest compressions within past 48h',sub:'7 pts',pts:7},
+],
+calc(v){
+  let s=0;
+  const fields=['ti_pa','ti_cv','ti_iabp','ti_hemo','ti_icp','ti_vent','ti_supv','ti_vaso','ti_multi_vaso','ti_iv','ti_pn','ti_en','ti_spec','ti_spec_out','ti_drain','ti_urine','ti_blood','ti_art','ti_arrest'];
+  // If multi_vaso, don't double count single vaso
+  fields.forEach(k=>{
+    if(k==='ti_vaso'&&v.ti_multi_vaso)return;
+    const pts_map={ti_pa:3,ti_cv:2,ti_iabp:8,ti_hemo:3,ti_icp:4,ti_vent:5,ti_supv:2,ti_vaso:3,ti_multi_vaso:4,ti_iv:3,ti_pn:3,ti_en:2,ti_spec:5,ti_spec_out:2,ti_drain:3,ti_urine:2,ti_blood:4,ti_art:5,ti_arrest:7};
+    if(v[k])s+=pts_map[k]||0;
+  });
+  return{score:s,max:78};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=9)return{risk:'Type 1 — Minimal',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'TISS-28 ≤9: minimal ICU intervention. Type 1 patient. Can be managed in a step-down/HDU environment with 1:3 nurse-to-patient ratio. Review need for ongoing ICU admission.'};
+  if(s<=19)return{risk:'Type 2 — Standard',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'TISS-28 10–19: standard ICU patient. Type 2. Approximately 1:2 nurse ratio. Routine ICU care with current interventions.'};
+  if(s<=29)return{risk:'Type 3 — Complex',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'TISS-28 20–29: complex ICU patient. Type 3. Requires dedicated nursing (1:1). High workload — ensure staffing adequacy. Consider daily round to rationalise interventions.'};
+  return{risk:'Type 4 — Very Complex',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'TISS-28 ≥30: very high workload. Type 4. Potentially requires >1 nurse. Typical of post-cardiac arrest, multi-organ failure, VA-ECMO, or major post-operative patients. Review resource allocation. Consider subspecialty ICU transfer if needed.'};
+}},
+
+
+// ── APACHE IV ─────────────────────────────────────
+{id:'apache4',name:'APACHE IV',desc:'Acute Physiology and Chronic Health Evaluation IV — ICU mortality prediction',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Zimmerman JE et al. Crit Care Med 2006;34:1297-1310.',
+fields:[
+  {type:'num',id:'a4_age',label:'Age (years)',min:16,max:120},
+  {type:'num',id:'a4_gcs',label:'GCS (worst in first 24h)',min:3,max:15},
+  {type:'num',id:'a4_map',label:'Mean Arterial Pressure (mmHg)',min:0,max:250},
+  {type:'num',id:'a4_hr',label:'Heart Rate (bpm)',min:0,max:300},
+  {type:'num',id:'a4_rr',label:'Respiratory Rate (/min)',min:0,max:80},
+  {type:'num',id:'a4_temp',label:'Temperature (C)',min:30,max:45},
+  {type:'num',id:'a4_pao2',label:'PaO2 (mmHg)',min:0,max:700},
+  {type:'num',id:'a4_fio2',label:'FiO2 (%)',min:21,max:100},
+  {type:'num',id:'a4_ph',label:'Arterial pH',min:6.8,max:7.9},
+  {type:'num',id:'a4_na',label:'Sodium (mEq/L)',min:100,max:200},
+  {type:'num',id:'a4_cr',label:'Creatinine (mg/dL)',min:0.1,max:20},
+  {type:'num',id:'a4_bun',label:'BUN (mg/dL)',min:0,max:200},
+  {type:'num',id:'a4_alb',label:'Albumin (g/dL)',min:1,max:6},
+  {type:'num',id:'a4_bili',label:'Bilirubin (mg/dL)',min:0,max:50},
+  {type:'num',id:'a4_glu',label:'Glucose (mg/dL)',min:20,max:1000},
+  {type:'num',id:'a4_hct',label:'Hematocrit (%)',min:0,max:70},
+  {type:'num',id:'a4_wbc',label:'WBC (x10^3/uL)',min:0,max:100},
+  {type:'num',id:'a4_urine',label:'Urine output (mL/24h)',min:0,max:10000},
+  {type:'sel',id:'a4_vent',label:'Mechanical ventilation',opts:['No','Yes - ventilated']},
+  {type:'sel',id:'a4_adm',label:'Admission type',opts:['Medical (non-operative)','Elective surgical','Emergency surgical','Trauma']},
+  {type:'sel',id:'a4_chronic',label:'Chronic health',opts:['None','Metastatic cancer','Haematological malignancy','Immunosuppression','AIDS','Cirrhosis (Child C)','Chronic dialysis']},
+  {type:'chk',id:'a4_cpr',label:'CPR prior to ICU admission',sub:'',pts:0},
+],
+calc(v){
+  let aps=0;
+  const gcs=+v.a4_gcs||15; aps+=(15-gcs);
+  const map=+v.a4_map||70;
+  if(map<40)aps+=23;else if(map<60)aps+=15;else if(map<70)aps+=7;else if(map>=160)aps+=17;else if(map>=130)aps+=7;else if(map>=110)aps+=5;
+  const hr=+v.a4_hr||80;
+  if(hr<40)aps+=11;else if(hr<55)aps+=5;else if(hr>=155)aps+=7;else if(hr>=140)aps+=5;else if(hr>=120)aps+=1;
+  const rr=+v.a4_rr||14;
+  if(rr<6)aps+=17;else if(rr<12)aps+=8;else if(rr>=50)aps+=18;else if(rr>=35)aps+=11;else if(rr>=25)aps+=7;
+  const t=+v.a4_temp||37;
+  if(t<33)aps+=20;else if(t<35)aps+=16;else if(t>=40.5)aps+=13;else if(t>=39)aps+=8;else if(t>=38.5)aps+=5;
+  const fio2=(+v.a4_fio2||21)/100;
+  const pao2=+v.a4_pao2||0;
+  const pf=fio2>0?pao2/fio2:0;
+  if(v.a4_vent==='Yes - ventilated'){if(pf<100)aps+=15;else if(pf<200)aps+=5;else if(pf<300)aps+=2;}
+  else{if(pao2<50)aps+=15;else if(pao2<60)aps+=5;}
+  const ph=+v.a4_ph||7.4;
+  if(ph<7.15)aps+=40;else if(ph<7.25)aps+=25;else if(ph<7.35)aps+=6;else if(ph>=7.65)aps+=12;else if(ph>=7.55)aps+=3;
+  const na=+v.a4_na||140;
+  if(na<120)aps+=7;else if(na<130)aps+=3;else if(na>=155)aps+=4;else if(na>=150)aps+=1;
+  const cr=+v.a4_cr||1;
+  if(cr>=3.5)aps+=10;else if(cr>=2)aps+=7;else if(cr>=1.5)aps+=4;else if(cr<0.5)aps+=3;
+  const bun=+v.a4_bun||15;
+  if(bun>=80)aps+=12;else if(bun>=40)aps+=9;else if(bun>=20)aps+=2;
+  const alb=+v.a4_alb||3.5;
+  if(alb<2)aps+=11;else if(alb<2.5)aps+=6;else if(alb<3)aps+=3;
+  const bili=+v.a4_bili||1;
+  if(bili>=8)aps+=16;else if(bili>=4)aps+=9;else if(bili>=2)aps+=5;
+  const glu=+v.a4_glu||100;
+  if(glu<40)aps+=20;else if(glu<60)aps+=9;else if(glu>=350)aps+=12;else if(glu>=200)aps+=3;
+  const hct=+v.a4_hct||35;
+  if(hct<20)aps+=19;else if(hct<30)aps+=5;else if(hct>=60)aps+=3;
+  const wbc=+v.a4_wbc||8;
+  if(wbc<1)aps+=19;else if(wbc<3)aps+=5;else if(wbc>=40)aps+=5;else if(wbc>=20)aps+=1;
+  const uo=+v.a4_urine||1500;
+  if(uo<400)aps+=15;else if(uo<600)aps+=8;else if(uo<900)aps+=3;
+  const age=+v.a4_age||50;
+  let agePs=0;
+  if(age>=85)agePs=24;else if(age>=75)agePs=17;else if(age>=65)agePs=13;else if(age>=55)agePs=8;else if(age>=45)agePs=3;
+  let chron=0;
+  if(v.a4_chronic?.includes('Metastatic'))chron=11;
+  else if(v.a4_chronic?.includes('Haematological'))chron=10;
+  else if(v.a4_chronic?.includes('Immunosuppression'))chron=10;
+  else if(v.a4_chronic?.includes('AIDS'))chron=23;
+  else if(v.a4_chronic?.includes('Cirrhosis'))chron=16;
+  else if(v.a4_chronic?.includes('dialysis'))chron=8;
+  let admPs=0;
+  if(v.a4_adm?.includes('Emergency'))admPs=8;
+  else if(v.a4_adm?.includes('Trauma'))admPs=4;
+  const cprPs=v.a4_cpr?7:0;
+  const total=aps+agePs+chron+admPs+cprPs;
+  const logit=-4.07+0.1*total;
+  const mort=Math.round(100*Math.exp(logit)/(1+Math.exp(logit)));
+  return{score:total,max:200,extra:{aps,mort:Math.min(mort,99)}};
+},
+interpret(r){
+  const s=r.score,m=r.extra?.mort??0,aps=r.extra?.aps??0;
+  if(s<30)return{risk:'Low Severity',mort:'APS '+aps+' | Pred. mortality ~'+m+'%',color:'#4ADE80',bg:'#4ADE8022',rec:'APACHE IV score '+s+'. APS '+aps+'. Predicted mortality ~'+m+'%. Low severity. Standard ICU care. Daily reassessment.'};
+  if(s<60)return{risk:'Moderate Severity',mort:'APS '+aps+' | Pred. mortality ~'+m+'%',color:'#F5A623',bg:'#F5A62322',rec:'APACHE IV score '+s+'. APS '+aps+'. Predicted mortality ~'+m+'%. Moderate severity. Optimise organ support. Early specialist involvement.'};
+  if(s<90)return{risk:'High Severity',mort:'APS '+aps+' | Pred. mortality ~'+m+'%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'APACHE IV score '+s+'. APS '+aps+'. Predicted mortality ~'+m+'%. High severity. Full organ support. Goals-of-care discussion with family.'};
+  return{risk:'Critical',mort:'APS '+aps+' | Pred. mortality ~'+m+'%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'APACHE IV score '+s+'. APS '+aps+'. Predicted mortality ~'+m+'%. Critical severity. Immediate family meeting. Palliative and ethics consultation.'};
+}},
+
+// ── SIRS CRITERIA ─────────────────────────────────
+{id:'sirs',name:'SIRS Criteria',desc:'Systemic Inflammatory Response Syndrome',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Bone RC et al. Chest 1992;101:1644-1655.',
+fields:[
+  {type:'chk',id:'si_temp',label:'Temperature < 36 or > 38 C',sub:'',pts:1},
+  {type:'chk',id:'si_hr',label:'Heart Rate > 90 bpm',sub:'',pts:1},
+  {type:'chk',id:'si_rr',label:'Respiratory Rate > 20/min OR PaCO2 < 32 mmHg',sub:'',pts:1},
+  {type:'chk',id:'si_wbc',label:'WBC < 4,000 or > 12,000/uL OR > 10% bands',sub:'',pts:1},
+],
+calc(v){let s=0;['si_temp','si_hr','si_rr','si_wbc'].forEach(k=>{if(v[k])s++;});return{score:s,max:4};},
+interpret(r){
+  const s=r.score;
+  if(s<2)return{risk:'No SIRS',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'SIRS criteria not met. Continue monitoring.'};
+  if(s===2)return{risk:'SIRS (2 criteria)',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'SIRS present. Investigate for infectious or non-infectious cause. If infection suspected: blood cultures, lactate, consider antibiotics. Note: SIRS has been superseded by Sepsis-3 criteria. Use qSOFA + SOFA for sepsis assessment.'};
+  if(s===3)return{risk:'SIRS (3 criteria)',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'SIRS with 3 criteria. Active investigation. Apply Sepsis-3: suspected infection + SOFA >= 2 = sepsis. Initiate sepsis bundle if appropriate.'};
+  return{risk:'SIRS (4 criteria)',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'SIRS with all 4 criteria. Severe systemic inflammation. Urgent evaluation. Full organ dysfunction screen (SOFA). Immediate resuscitation.'};
+}},
+
+// ── NEWS2 ─────────────────────────────────────────
+{id:'news2',name:'NEWS2',desc:'National Early Warning Score 2 - clinical deterioration detection',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Royal College of Physicians. NEWS 2. London: RCP, 2017.',
+fields:[
+  {type:'sel',id:'nw_rr',label:'Respiratory Rate (/min)',opts:['<=7 or >=25 (3pts)','8-11 (1pt)','12-20 (0pts)','21-24 (2pts)']},
+  {type:'sel',id:'nw_spo2',label:'SpO2 (%)',opts:['<=91 (3pts)','92-93 (2pts)','94-95 (1pt)','>=96 (0pts)']},
+  {type:'sel',id:'nw_air',label:'Supplemental O2',opts:['Air (0pts)','Any supplemental O2 (2pts)']},
+  {type:'sel',id:'nw_sbp',label:'Systolic BP (mmHg)',opts:['<=90 or >=220 (3pts)','91-100 (2pts)','101-110 (1pt)','111-219 (0pts)']},
+  {type:'sel',id:'nw_hr',label:'Heart Rate (bpm)',opts:['<=40 or >=131 (3pts)','41-50 or 111-130 (2pts)','51-90 (0pts)','91-110 (1pt)']},
+  {type:'sel',id:'nw_con',label:'Consciousness / AVPU',opts:['Alert (0pts)','Confusion / CVPU (3pts)']},
+  {type:'sel',id:'nw_temp',label:'Temperature (C)',opts:['<=35.0 (3pts)','35.1-36.0 (1pt)','36.1-38.0 (0pts)','38.1-39.0 (1pt)','>=39.1 (2pts)']},
+],
+calc(v){
+  let s=0;
+  ['nw_rr','nw_spo2','nw_sbp','nw_hr','nw_temp'].forEach(k=>{
+    const val=v[k]||'';
+    if(val.includes('3pts'))s+=3;else if(val.includes('2pts'))s+=2;else if(val.includes('1pt'))s+=1;
+  });
+  if(v.nw_air?.includes('2pts'))s+=2;
+  if(v.nw_con&&!v.nw_con?.includes('Alert'))s+=3;
+  return{score:s,max:20};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=4)return{risk:'Low',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'NEWS2 0-4: Low risk. Monitor minimum 12-hourly. Ward-based care. Escalate if score rises.'};
+  if(s<=6)return{risk:'Medium',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'NEWS2 5-6: Medium risk. Urgent ward doctor review within 30 min. Monitoring every 4h. Consider HDU. Identify and treat cause.'};
+  return{risk:'High',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'NEWS2 >= 7: High risk. Emergency assessment by clinical team with critical care competencies. Continuous monitoring. Activate MET/RRT team. ICU admission likely.'};
+}},
+
+// ── CPOT ──────────────────────────────────────────
+{id:'cpot',name:'CPOT',desc:'Critical-Care Pain Observation Tool - non-verbal pain in ICU',cat:'Neuro',catColor:'#A78BFA',catBg:'#A78BFA22',
+ref:'Gelinas C et al. Am J Crit Care 2006;15:420-427.',
+fields:[
+  {type:'sel',id:'cpt_face',label:'Facial expression',opts:['Relaxed, neutral (0pts)','Tense (1pt)','Grimacing (2pts)']},
+  {type:'sel',id:'cpt_body',label:'Body movements',opts:['Absence of movements (0pts)','Protection / slow cautious (1pt)','Restlessness / agitation (2pts)']},
+  {type:'sel',id:'cpt_vent',label:'Compliance with ventilator',opts:['Tolerating ventilator (0pts)','Coughing but tolerating (1pt)','Fighting ventilator (2pts)']},
+  {type:'sel',id:'cpt_vocal',label:'Vocalization (non-intubated)',opts:['Normal talking / no sound (0pts)','Sighing, moaning (1pt)','Crying out, sobbing (2pts)']},
+],
+calc(v){
+  let s=0;
+  ['cpt_face','cpt_body','cpt_vent','cpt_vocal'].forEach(k=>{
+    if(v[k]?.includes('1pt'))s+=1;else if(v[k]?.includes('2pts'))s+=2;
+  });
+  return{score:s,max:8};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=1)return{risk:'No/Minimal Pain',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'CPOT 0-1: No significant pain. Continue current analgesic regimen. Reassess every 4h.'};
+  if(s<=3)return{risk:'Mild-Moderate Pain',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'CPOT 2-3: Mild-moderate pain. Initiate or uptitrate analgesia. Paracetamol 1g QID. Opioid PRN (fentanyl 25-50 mcg IV). Reassess 30 min after intervention.'};
+  return{risk:'Significant Pain',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'CPOT >= 4: Significant pain. Escalate analgesia urgently. Regular opioid infusion. Consider ketamine adjunct (0.1-0.5 mg/kg/h). Treat precipitating cause. Target CPOT < 3.'};
+}},
+
+// ── PERC RULE ─────────────────────────────────────
+{id:'perc',name:'PERC Rule',desc:'PE Rule-Out Criteria - low pre-test probability PE exclusion',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Kline JA et al. J Thromb Haemost 2004;2:1247-1255.',
+fields:[
+  {type:'chk',id:'pr_age',label:'Age >= 50 years',sub:'',pts:1},
+  {type:'chk',id:'pr_hr',label:'Heart Rate >= 100 bpm',sub:'',pts:1},
+  {type:'chk',id:'pr_spo2',label:'SpO2 < 95% on room air',sub:'',pts:1},
+  {type:'chk',id:'pr_dvt',label:'Unilateral leg swelling',sub:'',pts:1},
+  {type:'chk',id:'pr_hemo',label:'Haemoptysis',sub:'',pts:1},
+  {type:'chk',id:'pr_surgery',label:'Recent surgery or trauma within 4 weeks',sub:'Requiring general anaesthesia',pts:1},
+  {type:'chk',id:'pr_dvthx',label:'Prior DVT or PE',sub:'',pts:1},
+  {type:'chk',id:'pr_estrogen',label:'Exogenous oestrogen use',sub:'OCP, HRT, or oestrogen-containing contraceptive',pts:1},
+],
+calc(v){let s=0;['pr_age','pr_hr','pr_spo2','pr_dvt','pr_hemo','pr_surgery','pr_dvthx','pr_estrogen'].forEach(k=>{if(v[k])s++;});return{score:s,max:8};},
+interpret(r){
+  const s=r.score;
+  if(s===0)return{risk:'PERC Negative - PE Excluded',mort:'PE < 2%',color:'#4ADE80',bg:'#4ADE8022',rec:'All PERC absent AND pre-test probability low (Wells PE <= 1): PE effectively excluded. No D-dimer or CTPA required. PERC only valid when pre-test probability is already low.'};
+  return{risk:'PERC Positive - Further Testing Needed',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:s+' PERC criterion/criteria present. PE not excluded. Proceed with D-dimer (Wells <= 4) or CTPA (Wells > 4 or D-dimer positive). Apply Wells PE score.'};
+}},
+
+// ── REVISED GENEVA ────────────────────────────────
+{id:'geneva',name:'Revised Geneva Score',desc:'Pre-test probability of pulmonary embolism',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Le Gal G et al. Ann Intern Med 2006;144:165-171.',
+fields:[
+  {type:'chk',id:'ge_age',label:'Age > 65 years',sub:'+1 pt',pts:1},
+  {type:'chk',id:'ge_dvthx',label:'Previous DVT or PE',sub:'+3 pts',pts:3},
+  {type:'chk',id:'ge_surg',label:'Surgery or fracture within 1 month',sub:'+2 pts',pts:2},
+  {type:'chk',id:'ge_ca',label:'Active malignancy',sub:'+2 pts',pts:2},
+  {type:'chk',id:'ge_pain',label:'Unilateral lower limb pain',sub:'+3 pts',pts:3},
+  {type:'chk',id:'ge_hemo',label:'Haemoptysis',sub:'+2 pts',pts:2},
+  {type:'sel',id:'ge_hr',label:'Heart Rate',opts:['< 75 bpm (0pts)','75-94 bpm (3pts)','>= 95 bpm (5pts)']},
+  {type:'chk',id:'ge_leg',label:'Pain on deep palpation + unilateral oedema',sub:'+4 pts',pts:4},
+],
+calc(v){
+  let s=0;
+  const pts2={ge_age:1,ge_dvthx:3,ge_surg:2,ge_ca:2,ge_pain:3,ge_hemo:2,ge_leg:4};
+  Object.keys(pts2).forEach(k=>{if(v[k])s+=pts2[k];});
+  if(v.ge_hr?.includes('3pts'))s+=3;else if(v.ge_hr?.includes('5pts'))s+=5;
+  return{score:s,max:22};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=3)return{risk:'Low Probability',mort:'PE ~8%',color:'#4ADE80',bg:'#4ADE8022',rec:'Low probability. D-dimer: if negative PE excluded. If positive CTPA.'};
+  if(s<=10)return{risk:'Intermediate Probability',mort:'PE ~29%',color:'#F5A623',bg:'#F5A62322',rec:'Intermediate probability (~29% PE prevalence). D-dimer or CTPA. Consider empirical anticoagulation if imaging delayed.'};
+  return{risk:'High Probability',mort:'PE ~74%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'High probability (~74% PE prevalence). Urgent CTPA. Start anticoagulation immediately. Do not delay for D-dimer.'};
+}},
+
+// ── CAPRINI ───────────────────────────────────────
+{id:'caprini',name:'Caprini VTE Risk',desc:'Surgical patient VTE risk and prophylaxis guide',cat:'Vascular',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Caprini JA. Dis Mon 2005;51:70-78.',
+fields:[
+  {type:'chk',id:'ca_age40',label:'Age 41-60 years',sub:'+1 pt',pts:1},
+  {type:'chk',id:'ca_age60',label:'Age 61-74 years',sub:'+2 pts (use instead of above)',pts:2},
+  {type:'chk',id:'ca_age75',label:'Age >= 75 years',sub:'+3 pts (use instead of above)',pts:3},
+  {type:'chk',id:'ca_bmi',label:'BMI > 25 kg/m2',sub:'+1 pt',pts:1},
+  {type:'chk',id:'ca_majsurg',label:'Major surgery > 45 min',sub:'+2 pts',pts:2},
+  {type:'chk',id:'ca_malign',label:'Malignancy (present or previous)',sub:'+2 pts',pts:2},
+  {type:'chk',id:'ca_immob',label:'Confined to bed > 72h',sub:'+2 pts',pts:2},
+  {type:'chk',id:'ca_ivline',label:'Central venous access',sub:'+2 pts',pts:2},
+  {type:'chk',id:'ca_stroke',label:'Stroke within 1 month',sub:'+5 pts',pts:5},
+  {type:'chk',id:'ca_thromb',label:'Personal history of VTE',sub:'+3 pts',pts:3},
+  {type:'chk',id:'ca_fracture',label:'Hip, pelvis, or leg fracture',sub:'+5 pts',pts:5},
+  {type:'chk',id:'ca_arthroplasty',label:'Elective arthroplasty',sub:'+5 pts',pts:5},
+  {type:'chk',id:'ca_spinal',label:'Spinal cord injury (acute)',sub:'+5 pts',pts:5},
+],
+calc(v){
+  let s=0;
+  if(v.ca_age75)s+=3;else if(v.ca_age60)s+=2;else if(v.ca_age40)s+=1;
+  const rest=['ca_bmi','ca_majsurg','ca_malign','ca_immob','ca_ivline','ca_stroke','ca_thromb','ca_fracture','ca_arthroplasty','ca_spinal'];
+  const pts=[1,2,2,2,2,5,3,5,5,5];
+  rest.forEach((k,i)=>{if(v[k])s+=pts[i];});
+  return{score:s,max:30};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=1)return{risk:'Low Risk',mort:'VTE < 0.5%',color:'#4ADE80',bg:'#4ADE8022',rec:'Caprini 0-1: Low risk. Early ambulation. Mechanical prophylaxis (IPC) if immobile.'};
+  if(s<=2)return{risk:'Moderate Risk',mort:'VTE ~1.5%',color:'#F5A623',bg:'#F5A62322',rec:'Caprini 2: Moderate risk. LMWH (enoxaparin 40 mg SC OD) or UFH 5000 U SC TDS. Start 12h pre/post-op. Continue 7-10 days.'};
+  if(s<=4)return{risk:'High Risk',mort:'VTE ~3%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Caprini 3-4: High risk. LMWH + mechanical prophylaxis (IPC + TED). Extended prophylaxis 28 days for cancer surgery.'};
+  return{risk:'Highest Risk',mort:'VTE > 6%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Caprini >= 5: Highest risk. LMWH + mechanical prophylaxis mandatory. Extended prophylaxis 28-35 days for orthopaedic/oncological surgery.'};
+}},
+
+// ── PADUA ─────────────────────────────────────────
+{id:'padua',name:'Padua Prediction Score',desc:'Medical patient VTE risk in hospitalised patients',cat:'Vascular',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Barbar S et al. J Thromb Haemost 2010;8:2450-2457.',
+fields:[
+  {type:'chk',id:'pa_ca',label:'Active cancer (metastases or recent chemo/RT)',sub:'+3 pts',pts:3},
+  {type:'chk',id:'pa_vte',label:'Previous VTE',sub:'+3 pts',pts:3},
+  {type:'chk',id:'pa_thromb',label:'Thrombophilia',sub:'+3 pts',pts:3},
+  {type:'chk',id:'pa_immob',label:'Reduced mobility (bed rest >= 3 days)',sub:'+3 pts',pts:3},
+  {type:'chk',id:'pa_trauma',label:'Recent trauma or surgery (< 1 month)',sub:'+2 pts',pts:2},
+  {type:'chk',id:'pa_age',label:'Age >= 70 years',sub:'+1 pt',pts:1},
+  {type:'chk',id:'pa_hf',label:'Heart failure or respiratory failure',sub:'+1 pt',pts:1},
+  {type:'chk',id:'pa_mi',label:'Acute MI or ischaemic stroke',sub:'+1 pt',pts:1},
+  {type:'chk',id:'pa_infect',label:'Acute infection or rheumatological disorder',sub:'+1 pt',pts:1},
+  {type:'chk',id:'pa_obese',label:'Obesity (BMI >= 30)',sub:'+1 pt',pts:1},
+  {type:'chk',id:'pa_hormones',label:'Ongoing hormonal treatment',sub:'+1 pt',pts:1},
+],
+calc(v){
+  const pts={pa_ca:3,pa_vte:3,pa_thromb:3,pa_immob:3,pa_trauma:2,pa_age:1,pa_hf:1,pa_mi:1,pa_infect:1,pa_obese:1,pa_hormones:1};
+  let s=0;Object.keys(pts).forEach(k=>{if(v[k])s+=pts[k];});
+  return{score:s,max:20};
+},
+interpret(r){
+  const s=r.score;
+  if(s<4)return{risk:'Low VTE Risk',mort:'VTE ~0.3%',color:'#4ADE80',bg:'#4ADE8022',rec:'Padua < 4: Low risk. No pharmacological prophylaxis needed. Early mobilisation.'};
+  return{risk:'High VTE Risk',mort:'VTE ~11%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Padua >= 4: High risk. LMWH prophylaxis (enoxaparin 40 mg SC OD or dalteparin 5000 U SC OD) if no bleeding contraindication. Continue until ambulant or discharge.'};
+}},
+
+// ── BRADEN ────────────────────────────────────────
+{id:'braden',name:'Braden Scale',desc:'Pressure ulcer / injury risk assessment',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Braden BJ, Bergstrom N. Nurs Res 1987;36:205-210.',
+fields:[
+  {type:'sel',id:'br_sens',label:'Sensory perception',opts:['1 - Completely limited','2 - Very limited','3 - Slightly limited','4 - No impairment']},
+  {type:'sel',id:'br_moist',label:'Moisture',opts:['1 - Constantly moist','2 - Very moist','3 - Occasionally moist','4 - Rarely moist']},
+  {type:'sel',id:'br_act',label:'Activity',opts:['1 - Bedfast','2 - Chairfast','3 - Walks occasionally','4 - Walks frequently']},
+  {type:'sel',id:'br_mob',label:'Mobility',opts:['1 - Completely immobile','2 - Very limited','3 - Slightly limited','4 - No limitation']},
+  {type:'sel',id:'br_nutr',label:'Nutrition',opts:['1 - Very poor','2 - Probably inadequate','3 - Adequate','4 - Excellent']},
+  {type:'sel',id:'br_fric',label:'Friction and shear',opts:['1 - Problem','2 - Potential problem','3 - No apparent problem']},
+],
+calc(v){
+  let s=0;['br_sens','br_moist','br_act','br_mob','br_nutr','br_fric'].forEach(k=>{s+=(parseInt(v[k])||0);});
+  return{score:s,max:23};
+},
+interpret(r){
+  const s=r.score;
+  if(s>=19)return{risk:'Low Risk',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'Braden >= 19: Low risk. Standard skin care, turn every 2h, nutritional support.'};
+  if(s>=15)return{risk:'Mild Risk',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'Braden 15-18: Mild risk. Turn every 2h. Moisture barrier cream. Heel protection. Nutritional optimisation.'};
+  if(s>=13)return{risk:'Moderate Risk',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'Braden 13-14: Moderate risk. Pressure-redistributing mattress. Strict turning schedule. Heel offloading. Dietitian referral.'};
+  if(s>=10)return{risk:'High Risk',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Braden 10-12: High risk. Specialist foam or dynamic mattress. Heel protectors. Wound care team. MUST nutritional screen.'};
+  return{risk:'Very High Risk',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Braden <= 9: Very high risk. Active air redistribution mattress. Reposition every 1-2h. Skin surveillance twice daily. Enteral nutrition if oral not possible. Tissue viability team.'};
+}},
+
+// ── NUTRIC ────────────────────────────────────────
+{id:'nutric',name:'NUTRIC Score',desc:'Nutrition Risk in Critically Ill patients',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Heyland D et al. JPEN J Parenter Enteral Nutr 2011;35:35S-43S.',
+fields:[
+  {type:'sel',id:'nu_age',label:'Age (years)',opts:['< 50 (0pts)','50-74 (1pt)','>= 75 (2pts)']},
+  {type:'sel',id:'nu_apache',label:'APACHE II score',opts:['< 15 (0pts)','15-19 (1pt)','20-27 (2pts)','>= 28 (3pts)']},
+  {type:'sel',id:'nu_sofa',label:'SOFA score',opts:['< 6 (0pts)','6-9 (1pt)','>= 10 (2pts)']},
+  {type:'sel',id:'nu_comorbid',label:'Number of comorbidities',opts:['0-1 (0pts)','>= 2 (1pt)']},
+  {type:'sel',id:'nu_icu',label:'Days in hospital before ICU',opts:['0-1 day (0pts)','>= 2 days (1pt)']},
+],
+calc(v){
+  let s=0;
+  if(v.nu_age?.includes('1pt'))s+=1;else if(v.nu_age?.includes('2pts'))s+=2;
+  if(v.nu_apache?.includes('1pt'))s+=1;else if(v.nu_apache?.includes('2pts'))s+=2;else if(v.nu_apache?.includes('3pts'))s+=3;
+  if(v.nu_sofa?.includes('1pt'))s+=1;else if(v.nu_sofa?.includes('2pts'))s+=2;
+  if(v.nu_comorbid?.includes('1pt'))s+=1;
+  if(v.nu_icu?.includes('1pt'))s+=1;
+  return{score:s,max:9};
+},
+interpret(r){
+  const s=r.score;
+  if(s<=4)return{risk:'Low Nutrition Risk',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'NUTRIC <= 4: Low nutritional risk. Standard care. Enteral nutrition within 24-48h if oral intake not possible. Target 25-30 kcal/kg/day. Protein 1.2-2 g/kg/day.'};
+  return{risk:'High Nutrition Risk',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:'NUTRIC >= 5: High nutritional risk. Aggressive early enteral nutrition within 24-48h (target 80% of goal by 72h). If EN not feasible > 48h: supplemental PN. Dietitian consult. Target 1.3-1.5 g/kg/day protein.'};
+}},
+
+// ── SBT READINESS ─────────────────────────────────
+{id:'sbt',name:'SBT Readiness Checklist',desc:'Spontaneous Breathing Trial and extubation readiness',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Boles JM et al. Eur Respir J 2007;29:1033-1056.',
+fields:[
+  {type:'chk',id:'sb_cause',label:'Cause of respiratory failure improving or resolved',sub:'',pts:1},
+  {type:'chk',id:'sb_spo2',label:'SpO2 >= 90% on FiO2 <= 40% and PEEP <= 8 cmH2O',sub:'',pts:1},
+  {type:'chk',id:'sb_rass',label:'RASS -1 to +1 (light sedation or alert)',sub:'',pts:1},
+  {type:'chk',id:'sb_cough',label:'Adequate cough and airway reflexes',sub:'',pts:1},
+  {type:'chk',id:'sb_hemo',label:'Haemodynamically stable (no escalating vasopressors in last 6h)',sub:'',pts:1},
+  {type:'chk',id:'sb_secret',label:'Manageable secretions (suctioning <= every 2h)',sub:'',pts:1},
+  {type:'chk',id:'sb_protect',label:'Airway protection intact (swallow, no stridor)',sub:'',pts:1},
+  {type:'chk',id:'sb_sat',label:'SAT passed (patient awakes and follows commands)',sub:'',pts:1},
+],
+calc(v){let s=0;['sb_cause','sb_spo2','sb_rass','sb_cough','sb_hemo','sb_secret','sb_protect','sb_sat'].forEach(k=>{if(v[k])s++;});return{score:s,max:8};},
+interpret(r){
+  const s=r.score;
+  if(s<=4)return{risk:'Not Ready for SBT',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:s+'/8 criteria met. Not ready. Address unmet criteria. Repeat assessment daily. Implement ABCDEF bundle.'};
+  if(s<=6)return{risk:'Consider SBT with Caution',mort:'',color:'#F5A623',bg:'#F5A62322',rec:s+'/8 criteria met. SBT possible with caution. T-piece or PSV 5-8 cmH2O for 30-120 min. Abort if: RR > 35, SpO2 < 90%, distress, RASS > +2.'};
+  return{risk:'Ready for SBT',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'All/most criteria met. Proceed with SBT. Pass criteria: RR < 25, HR < 120, SpO2 > 90%, no distress. If passed: extubate. Consider HFNC post-extubation for high-risk patients.'};
+}},
+
+// ── ABCDEF BUNDLE ─────────────────────────────────
+{id:'abcdef',name:'ABCDEF Bundle',desc:'ICU Liberation Bundle - pain, agitation, delirium, mobility',cat:'Severity',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Marra A et al. Crit Care Med 2017;45:e925-e933.',
+fields:[
+  {type:'chk',id:'ab_a',label:'A - Assess, Prevent, Manage Pain',sub:'CPOT <= 2, NRS <= 3, scheduled analgesia + PRN',pts:1},
+  {type:'chk',id:'ab_b',label:'B - Both SAT and SBT daily',sub:'Spontaneous Awakening + Breathing Trial attempted',pts:1},
+  {type:'chk',id:'ab_c',label:'C - Choose light sedation wisely',sub:'RASS target -1 to 0. Avoid benzodiazepines. Propofol or dexmedetomidine preferred',pts:1},
+  {type:'chk',id:'ab_d',label:'D - Delirium assessed, prevented, managed',sub:'CAM-ICU or ICDSC each shift. Non-pharmacological measures first',pts:1},
+  {type:'chk',id:'ab_e',label:'E - Early mobility and exercise',sub:'Passive ROM to active-assisted to sitting to walking',pts:1},
+  {type:'chk',id:'ab_f',label:'F - Family engagement',sub:'Family updated, invited to rounds, delirium education provided',pts:1},
+],
+calc(v){let s=0;['ab_a','ab_b','ab_c','ab_d','ab_e','ab_f'].forEach(k=>{if(v[k])s++;});return{score:s,max:6};},
+interpret(r){
+  const s=r.score;
+  if(s<=2)return{risk:'Bundle Poorly Implemented',mort:'',color:'#FF5A5A',bg:'#FF5A5A22',rec:s+'/6 ABCDEF elements completed. Full implementation reduces delirium, ventilation duration, and ICU-LOS. Team huddle to address gaps.'};
+  if(s<=4)return{risk:'Partial Bundle',mort:'',color:'#F5A623',bg:'#F5A62322',rec:s+'/6 elements completed. Address missing elements. Full bundle compliance significantly improves outcomes.'};
+  return{risk:'Full Bundle Compliant',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'All 6 ABCDEF elements implemented. Full bundle associated with: 68% lower hospital death odds, 45% lower coma risk, 70% lower next-day delirium odds.'};
+}},
+
+// ── VASOPRESSOR EQUIVALENCE ───────────────────────
+{id:'vasopressor',name:'Vasopressor Equivalence',desc:'Convert vasoactive agents to norepinephrine equivalent dose (NEE)',cat:'Cardiac',catColor:'#FF5A5A',catBg:'#FF5A5A22',
+ref:'Auchet T et al. Ann Intensive Care 2017;7:18.',
+fields:[
+  {type:'num',id:'vp_norepi',label:'Norepinephrine (mcg/kg/min)',min:0,max:5},
+  {type:'num',id:'vp_epi',label:'Epinephrine (mcg/kg/min)',min:0,max:5},
+  {type:'num',id:'vp_dopa',label:'Dopamine (mcg/kg/min)',min:0,max:30},
+  {type:'num',id:'vp_vaso',label:'Vasopressin (units/min)',min:0,max:0.1},
+  {type:'num',id:'vp_pheny',label:'Phenylephrine (mcg/kg/min)',min:0,max:10},
+  {type:'num',id:'vp_dobut',label:'Dobutamine (mcg/kg/min)',min:0,max:30},
+],
+calc(v){
+  const ne=+v.vp_norepi||0;const epi=+v.vp_epi||0;const dopa=+v.vp_dopa||0;
+  const vaso=+v.vp_vaso||0;const pheny=+v.vp_pheny||0;const dobut=+v.vp_dobut||0;
+  const nee=ne+(epi)+(dopa>10?dopa/100:0)+(vaso*4.17)+(pheny*0.45)+(dobut*0.1);
+  return{score:Math.round(nee*100)/100,max:5};
+},
+interpret(r){
+  const s=r.score;
+  if(s===0)return{risk:'No vasopressors',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'No vasopressor support. Enter doses above to calculate norepinephrine equivalence (NEE).'};
+  if(s<0.1)return{risk:'Very Low dose',mort:'',color:'#4ADE80',bg:'#4ADE8022',rec:'NEE '+s+' mcg/kg/min: Very low. Consider weaning if MAP target met and lactate normalising.'};
+  if(s<0.25)return{risk:'Low-Moderate dose',mort:'',color:'#F5A623',bg:'#F5A62322',rec:'NEE '+s+' mcg/kg/min: Monitor lactate, ScvO2, urine output. Optimise volume. Daily weaning assessment.'};
+  if(s<0.5)return{risk:'High dose',mort:'~30-40%',color:'#F5A623',bg:'#F5A62322',rec:'NEE '+s+' mcg/kg/min: High vasopressor. Add vasopressin 0.03-0.04 U/min. Consider hydrocortisone 200 mg/day. Echo to assess cardiac function.'};
+  return{risk:'Very High / Refractory',mort:'> 50%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'NEE '+s+' mcg/kg/min: Refractory shock. Escalate: vasopressin, angiotensin II, hydrocortisone, methylene blue post-cardiac surgery. ECMO consideration. Goals-of-care discussion essential.'};
 }},
 
 ]; // end SCORES
