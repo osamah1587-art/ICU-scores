@@ -1,6 +1,6 @@
 {
-  "name": "ICU Scores",
-  "short_name": "ICU Scores",
+  "name": "ICU Scores — O.Dakka",
+  "short_name": "ICU — O.Dakka",
   "description": "30 critical care scoring systems — APACHE, SOFA, GCS, Wells, PESI, Candida, KDIGO, RIFLE and more",
   "start_url": "./",
   "display": "standalone",
