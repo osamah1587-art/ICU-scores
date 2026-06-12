@@ -197,7 +197,7 @@ button{cursor:pointer;border:none;background:none}
     <div class="topbar">
       <div>
         <div class="topbar-title">ICU <span>Scores</span></div>
-        <div class="topbar-sub">48 Critical Care Calculators</div>
+        <div class="topbar-sub">50 Critical Care Calculators</div>
       </div>
       <div class="topbar-right">
         <button class="icon-btn" id="fav-filter-btn" onclick="toggleFavFilter()" title="Favourites"><i class="ti ti-star"></i></button>
@@ -1649,6 +1649,251 @@ interpret(r){
   return{risk:'Very High / Refractory',mort:'> 50%',color:'#FF5A5A',bg:'#FF5A5A22',rec:'NEE '+s+' mcg/kg/min: Refractory shock. Escalate: vasopressin, angiotensin II, hydrocortisone, methylene blue post-cardiac surgery. ECMO consideration. Goals-of-care discussion essential.'};
 }},
 
+
+// ── PE RISK STRATIFICATION (ESC 2019/2024 + AHA/ACC 2024) ────────────────
+{id:'pestrat',name:'PE Risk Stratification',desc:'ESC 2019/2024 + AHA/ACC 2024 combined PE clinical classification',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Konstantinides SV et al. Eur Heart J 2020;41:543-603. Giri J et al. Circulation 2024 (AHA/ACC).',
+fields:[
+  {type:'sel',id:'pes_hemo',label:'Haemodynamic status',opts:[
+    'Stable - no hypotension',
+    'Transient hypotension - responds to fluid/brief vasopressor',
+    'Normotensive shock - persistent organ hypoperfusion without hypotension',
+    'Sustained hypotension - SBP < 90 or drop > 40 mmHg > 15 min',
+    'Cardiac arrest or refractory cardiogenic shock',
+  ]},
+  {type:'sel',id:'pes_rv',label:'RV dysfunction on Echo or CT',opts:[
+    'No RV dysfunction',
+    'RV dilation (RV/LV ratio > 0.9)',
+    'Abnormal RV with preserved function (mild)',
+    'RV dysfunction with reduced function / D-shape / TAPSE < 17',
+  ]},
+  {type:'sel',id:'pes_bio',label:'Biomarkers (Troponin + BNP/NT-proBNP)',opts:[
+    'Both negative',
+    'One elevated (troponin OR BNP)',
+    'Both elevated (troponin AND BNP/NT-proBNP)',
+  ]},
+  {type:'sel',id:'pes_pesi',label:'PESI class or sPESI',opts:[
+    'PESI Class I-II or sPESI = 0 (low severity)',
+    'PESI Class III or sPESI >= 1 (elevated severity)',
+    'PESI Class IV-V (high severity)',
+  ]},
+  {type:'sel',id:'pes_clot',label:'Clot burden / imaging',opts:[
+    'Subsegmental only (single or multiple)',
+    'Non-subsegmental without RV strain',
+    'Segmental / lobar without RV involvement',
+    'Bilateral / central / saddle - with RV involvement',
+    'Massive bilateral / saddle embolus',
+  ]},
+  {type:'sel',id:'pes_o2',label:'Respiratory modifier (AHA/ACC)',opts:[
+    'Room air SpO2 >= 95%, RR < 30, no supplemental O2',
+    'Requires supplemental O2 (nasal cannula <= 6 L/min)',
+    'Requires high-flow O2 or NIV mask',
+    'Respiratory failure / intubation required',
+  ]},
+  {type:'chk',id:'pes_dvt',label:'Confirmed DVT (proximal)',sub:'Increases clot burden and risk category',pts:0},
+  {type:'chk',id:'pes_cancer',label:'Active malignancy',sub:'Modifies management (LMWH preferred over DOAC)',pts:0},
+  {type:'chk',id:'pes_anticoag',label:'On therapeutic anticoagulation at PE diagnosis',sub:'Recurrent PE despite anticoagulation',pts:0},
+],
+calc(v){
+  // Determine ESC risk class
+  let escClass='';let escNum=0;
+  const hemo=v.pes_hemo||'';
+  const rv=v.pes_rv||'';
+  const bio=v.pes_bio||'';
+  const pesi=v.pes_pesi||'';
+
+  if(hemo.includes('Cardiac arrest')||hemo.includes('Sustained hypotension')){
+    escClass='HIGH RISK';escNum=4;
+  } else if(hemo.includes('Transient')||hemo.includes('Normotensive shock')){
+    escClass='INTERMEDIATE-HIGH RISK';escNum=3;
+  } else if((rv.includes('dysfunction')||rv.includes('dilation'))&&(bio.includes('Both elevated')||bio.includes('One elevated'))){
+    escClass='INTERMEDIATE-HIGH RISK';escNum=3;
+  } else if(rv.includes('dilation')||bio.includes('Both elevated')||bio.includes('One elevated')||pesi.includes('III')||pesi.includes('IV-V')){
+    escClass='INTERMEDIATE-LOW RISK';escNum=2;
+  } else {
+    escClass='LOW RISK';escNum=1;
+  }
+
+  // AHA/ACC category
+  let ahaClass='';
+  if(hemo.includes('Cardiac arrest')){ahaClass='E2 - Cardiopulmonary Failure (Cardiac Arrest)';}
+  else if(hemo.includes('refractory')){ahaClass='E2 - Cardiopulmonary Failure (Refractory Shock)';}
+  else if(hemo.includes('Sustained hypotension')){ahaClass='E1 - Cardiopulmonary Failure (Cardiogenic Shock)';}
+  else if(hemo.includes('Normotensive shock')){ahaClass='D2 - Incipient Cardiopulmonary Failure (Normotensive Shock)';}
+  else if(hemo.includes('Transient')){ahaClass='D1 - Incipient Cardiopulmonary Failure (Transient Hypotension)';}
+  else if(rv.includes('dysfunction with reduced')){
+    if(bio.includes('Both elevated'))ahaClass='C3 - Symptomatic Elevated Severity (Abnormal RV + Biomarkers)';
+    else if(bio.includes('One elevated'))ahaClass='C2 - Symptomatic Elevated Severity (Abnormal RV)';
+    else ahaClass='C2 - Symptomatic Elevated Severity (Abnormal RV)';
+  } else if(rv.includes('dilation')){
+    if(bio.includes('Both elevated'))ahaClass='C3 - Symptomatic (Abnormal RV + Biomarkers)';
+    else ahaClass='C1 - Symptomatic (Normal RV + Biomarkers)';
+  } else if(pesi.includes('III')||bio.includes('One')){
+    ahaClass='B2 - Symptomatic Low Severity (Non-subsegmental)';
+  } else if(v.pes_clot?.includes('Subsegmental')){
+    ahaClass='B1 - Symptomatic Low Severity (Subsegmental)';
+  } else {
+    ahaClass='A - Subclinical / Incidental';
+  }
+
+  // Respiratory modifier
+  const o2=v.pes_o2||'';
+  let respMod='None';
+  if(o2.includes('Respiratory failure'))respMod='R (Respiratory Failure)';
+  else if(o2.includes('high-flow'))respMod='R (High-flow O2 / NIV)';
+  else if(o2.includes('supplemental'))respMod='R (Supplemental O2 needed)';
+
+  return{score:escNum,max:4,extra:{escClass,ahaClass,respMod,cancer:!!v.pes_cancer,anticoag:!!v.pes_anticoag}};
+},
+interpret(r){
+  const e=r.extra||{};
+  const esc=e.escClass||'';
+  const aha=e.ahaClass||'';
+  const resp=e.respMod||'None';
+  const cancer=e.cancer;
+  const anticoag=e.anticoag;
+
+  let color,bg,rec='';
+
+  if(r.score<=1){
+    color='#4ADE80';bg='#4ADE8022';
+    rec='LOW RISK PE. Outpatient or early discharge strategy if sPESI=0, no RV dysfunction, troponin negative, and adequate home support. '+
+    'ANTICOAGULATION: Rivaroxaban 15 mg BID x21d then 20 mg OD (preferred), OR apixaban 10 mg BID x7d then 5 mg BID. '+
+    (cancer?'ACTIVE MALIGNANCY: LMWH preferred (tinzaparin or dalteparin) or edoxaban/rivaroxaban if low GI bleeding risk. ':'') +
+    (anticoag?'RECURRENT PE ON ANTICOAGULATION: IVC filter consideration + haematology review. ':'')+
+    'Follow-up echo at 3-6 months. Consider CTPA at 3-6 months if submassive clot.';
+  } else if(r.score===2){
+    color='#4ADE80';bg='#4ADE8022';
+    rec='INTERMEDIATE-LOW RISK PE. Hospital admission. '+
+    'ANTICOAGULATION: Start immediately. LMWH (enoxaparin 1 mg/kg SC BID) as bridge, or rivaroxaban/apixaban directly. UFH if thrombolysis or thrombectomy possible. '+
+    'MONITORING: Continuous telemetry. Serial troponin at 3-6h. Echo within 24h. ICU/HDU step-up criteria: HR>120, SBP drop, rising troponin, RV worsening on echo. '+
+    (cancer?'MALIGNANCY: LMWH preferred. ':'')+
+    'Reassess at 24-48h. Outpatient completion of anticoagulation if stable and low sPESI.';
+  } else if(r.score===3){
+    color='#FF5A5A';bg:'#FF5A5A22';
+    color='#FF5A5A';bg='#FF5A5A22';
+    rec='INTERMEDIATE-HIGH RISK PE. ICU or HDU admission. '+
+    'ANTICOAGULATION: IV UFH immediately (80 U/kg bolus then 18 U/kg/h, titrate to aPTT 60-80s). UFH mandatory to allow rapid switch to thrombolysis if deterioration. '+
+    'MONITORING: Arterial line. Continuous echo monitoring if deteriorating. PERT team activation. '+
+    'RESCUE THROMBOLYSIS threshold: SBP < 90 or >40 mmHg drop, or new cardiac arrest. Alteplase 100 mg IV over 2h (or 10 mg bolus + 90 mg over 2h). '+
+    'CATHETER-DIRECTED THERAPY: If systemic thrombolysis contraindicated - CDT (EKOS or mechanical). '+
+    (resp!=='None'?'RESPIRATORY MODIFIER PRESENT ('+resp+'): Ensure ICU-level respiratory support available. HFNC first line if SpO2 < 90%. ':'')+
+    (anticoag?'RECURRENT PE ON ANTICOAGULATION: Urgent haematology/PERT. IVC filter as bridge. ':'')+
+    'Surgical embolectomy: centres with cardiac surgery if thrombolysis fails or contraindicated.';
+  } else {
+    color='#FF5A5A';bg='#FF5A5A22';
+    rec='HIGH RISK / MASSIVE PE. Immediate life-threatening emergency. '+
+    'RESUSCITATION: Avoid excessive fluid (RV preload-dependent but fluid overload worsens RV). Vasopressors: norepinephrine 0.2-1 mcg/kg/min (maintain MAP > 65). Phenylephrine if tachycardia problematic. '+
+    'ANTICOAGULATION: IV UFH immediately - 80 U/kg bolus. '+
+    'REPERFUSION - choose based on availability and patient: '+
+    '1. SYSTEMIC THROMBOLYSIS (first line if no contraindication): Alteplase 100 mg IV over 2h. Tenecteplase weight-based if cardiac arrest. '+
+    '2. SURGICAL EMBOLECTOMY: If thrombolysis contraindicated or failed + cardiac surgery available. '+
+    '3. CATHETER-DIRECTED THERAPY (CDT): If thrombolysis contraindicated + no immediate surgery. EKOS ultrasound-assisted CDT. Aspiration thrombectomy (Penumbra, FlowTriever). '+
+    '4. VA-ECMO: Refractory arrest or shock as bridge to definitive therapy. '+
+    (resp.includes('Respiratory failure')||resp.includes('NIV')?'RESPIRATORY FAILURE PRESENT: Intubation extreme risk in massive PE (vasodilatory effect of induction). Use HFNC/NIV as bridge. If intubation unavoidable: ketamine-based RSI, volume-sparing ventilation, vasopressors running before induction. ':'')+
+    'PERT team activation. Cardiothoracic surgery. Interventional radiology. All on standby.';
+  }
+
+  return{
+    risk:esc,
+    mort:aha+(resp!=='None'?' | Resp: '+resp:''),
+    color,bg,rec,
+    extra:'AHA/ACC: '+aha+(cancer?' | Active malignancy - LMWH preferred':'')+(anticoag?' | Recurrent PE on anticoagulation':'')
+  };
+}},
+
+// ── ROX INDEX ─────────────────────────────────────
+{id:'rox',name:'ROX Index',desc:'Predict HFNC failure and intubation need in hypoxaemic respiratory failure',cat:'Pulmonary',catColor:'#4A9EFF',catBg:'#4A9EFF22',
+ref:'Roca O et al. Intensive Care Med 2019;45:1176-1184. Roca O et al. Crit Care 2016;20:101.',
+fields:[
+  {type:'num',id:'rx_spo2',label:'SpO2 (%)',min:50,max:100},
+  {type:'num',id:'rx_fio2',label:'FiO2 (%) — e.g. 40, 50, 60',min:21,max:100},
+  {type:'num',id:'rx_rr',label:'Respiratory Rate (/min)',min:5,max:80},
+  {type:'sel',id:'rx_time',label:'Time of assessment on HFNC',opts:[
+    '2 hours after HFNC initiation',
+    '6 hours after HFNC initiation',
+    '12 hours after HFNC initiation',
+  ]},
+  {type:'sel',id:'rx_cause',label:'Underlying cause of ARF',opts:[
+    'Pneumonia / community-acquired',
+    'COVID-19 pneumonia',
+    'Immunocompromised / haematological',
+    'Post-extubation respiratory failure',
+    'Cardiogenic pulmonary oedema',
+    'Other / unknown',
+  ]},
+],
+calc(v){
+  const spo2=+v.rx_spo2||0;
+  const fio2=(+v.rx_fio2||100)/100;
+  const rr=+v.rx_rr||1;
+  if(!spo2||!fio2||!rr)return{score:0,max:20,extra:{rox:0,valid:false}};
+  const rox=Math.round(((spo2/100)/fio2/rr)*100)/100;
+  return{score:Math.min(rox,20),max:20,extra:{rox,valid:true,time:v.rx_time||'',cause:v.rx_cause||''}};
+},
+interpret(r){
+  if(!r.extra?.valid)return{risk:'Enter values',mort:'',color:'#9198A3',bg:'#9198A322',rec:'Enter SpO2, FiO2, and Respiratory Rate to calculate ROX index.'};
+  const rox=r.extra.rox;
+  const time=r.extra.time||'';
+  const cause=r.extra.cause||'';
+
+  // Thresholds vary by time point (Roca 2019)
+  // At 2h: >= 4.88 = low failure risk
+  // At 6h: >= 4.88 = low failure risk
+  // At 12h: >= 4.88 = low failure risk
+  // ROX < 3.85 at any time = high failure risk
+  // COVID-19: threshold may be lower (~4.0)
+
+  let threshold=4.88;
+  let highRisk=3.85;
+  if(cause.includes('COVID'))threshold=4.0;
+  if(cause.includes('Immunocompromised'))threshold=5.0;
+
+  let color,bg,risk,rec;
+
+  if(rox>=threshold){
+    color='#4ADE80';bg='#4ADE8022';
+    risk='Low HFNC Failure Risk';
+    rec='ROX '+rox.toFixed(2)+' >= '+threshold+' ('+time+'): Low risk of HFNC failure. '+
+    'Continue HFNC. Reassess ROX at next time point (2h, 6h, 12h). '+
+    'Target: flow 40-60 L/min, FiO2 titrated to SpO2 92-96% (88-92% if COPD). '+
+    'Reassure if ROX trending UP — favourable trajectory. '+
+    (cause.includes('COVID')?'COVID-19: Prone positioning while on HFNC (awake prone) for 2-4h/day may improve oxygenation and reduce intubation. ':'') +
+    (cause.includes('Immunocompromised')?'Immunocompromised: HFNC preferred over NIV as first-line; higher threshold for intubation discussion. ':'') +
+    'Watch for: ROX < 3.85 at any point = immediate escalation.';
+  } else if(rox>=3.85){
+    color='#F5A623';bg='#F5A62322';
+    risk='Intermediate — Monitor Closely';
+    rec='ROX '+rox.toFixed(2)+' (3.85-'+threshold+') at '+time+': Intermediate zone. HFNC may still succeed but risk increasing. '+
+    'ACTIONS: Senior ICU review. Alert anaesthesia team. '+
+    'Optimise HFNC: increase flow to 60 L/min, adjust FiO2. '+
+    'Calculate HACOR score simultaneously to triangulate risk. '+
+    'Set clear escalation threshold: if ROX does not reach >= '+threshold+' by next time point or drops below 3.85 -> intubate. '+
+    'Pre-oxygenation preparation: HFNC 60 L/min during RSI provides apnoeic oxygenation. '+
+    (cause.includes('COVID')?'COVID-19: Awake prone if not already. If ROX falling -> escalate early. ':'')+
+    'Inform family of potential need for intubation.';
+  } else {
+    color='#FF5A5A';bg='#FF5A5A22';
+    risk='High HFNC Failure Risk — Intubate';
+    rec='ROX '+rox.toFixed(2)+' < 3.85 at '+time+': HIGH risk of HFNC failure. Early intubation strongly recommended. '+
+    'DELAY IS HARMFUL: Post-intubation mortality higher if HFNC prolonged beyond ROX failure threshold. '+
+    'RSI PROTOCOL: Maintain HFNC at 60 L/min during pre-oxygenation (provides apnoeic oxygenation). '+
+    'Induction: ketamine 1-2 mg/kg or etomidate 0.3 mg/kg. Rocuronium 1.2 mg/kg or succinylcholine 1.5 mg/kg. '+
+    'Post-intubation: lung-protective ventilation (TV 6 mL/kg IBW, Pplat < 30 cmH2O, PEEP 5-10). '+
+    'Calculate Murray Lung Injury Score post-intubation. '+
+    (cause.includes('COVID')?'COVID-19: High PEEP strategy. Consider early prone ventilation > 16h/day if P/F < 150. ':'')+
+    (cause.includes('Immunocompromised')?'Immunocompromised: Prophylactic antibacterial/antifungal cover. BAL before antibiotics if feasible. ':'') +
+    'ARDS workup: CXR, ABG, echo. Consider ECMO referral if P/F < 80 on FiO2 100% + PEEP >= 15.';
+  }
+
+  // Trend note
+  const trendNote='ROX TRAJECTORY matters: '+
+    'Rising ROX (even if below threshold) = favourable. '+
+    'Falling ROX = escalate regardless of absolute value. '+
+    'ROX < 2.85 = very high failure risk in all studies.';
+
+  return{risk,mort:'ROX = '+(rox.toFixed(2)),color,bg,rec,extra:trendNote};
+}},
 ]; // end SCORES
 
 // ═══════════════════════════════════════════════
