@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ICU Scores</title>
+<title>ICU Scores by O.Dakka</title>
 <meta name="description" content="30 critical care scoring systems — APACHE, SOFA, GCS, Wells, PESI, Candida, KDIGO, RIFLE and more. Full clinical decision support.">
 <meta name="theme-color" content="#0B0F1A">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -365,20 +365,54 @@ interpret(r){
 }},
 
 // ── CANDIDA SCORE ───────────────────────────────
-{id:'candida',name:'Candida Score',desc:'Risk of invasive candidiasis in ICU patients',cat:'Infection',catColor:'#00D4AA',catBg:'#00D4AA22',
-ref:'Leon C et al. Crit Care Med 2006;34:730–737.',
+{id:'candida',name:'Candida Score',desc:'Risk of invasive candidiasis — León original + modified version',cat:'Infection',catColor:'#00D4AA',catBg:'#00D4AA22',
+ref:'Leon C et al. Crit Care Med 2006;34:730-737. Original logistic regression: multifocal colonization coefficient strongest predictor.',
 fields:[
+  {type:'sel',id:'c_version',label:'Which version to use?',opts:[
+    'Original León 2006 (max 5 — logistic regression weights)',
+    'Modified / integer version (max 7 — commonly used in apps)',
+  ]},
   {type:'chk',id:'c_surg',label:'Surgery on ICU admission',sub:'Any surgical procedure at or before ICU admission',pts:1},
   {type:'chk',id:'c_tpn',label:'Total parenteral nutrition (TPN)',sub:'Active TPN at time of assessment',pts:1},
-  {type:'chk',id:'c_col',label:'Multifocal Candida colonization',sub:'≥2 non-contiguous body sites positive',pts:3},
+  {type:'chk',id:'c_col',label:'Multifocal Candida colonization',sub:'>=2 non-contiguous body sites positive',pts:0},
   {type:'chk',id:'c_sep',label:'Severe sepsis',sub:'Sepsis with acute organ dysfunction',pts:2},
 ],
-calc(v){let s=0;if(v.c_surg)s+=1;if(v.c_tpn)s+=1;if(v.c_col)s+=3;if(v.c_sep)s+=2;return{score:s,max:7};},
+calc(v){
+  const orig=!v.c_version||v.c_version.includes('Original');
+  let s=0;
+  if(v.c_surg)s+=1;
+  if(v.c_tpn)s+=1;
+  if(v.c_col)s+=orig?1:3;
+  if(v.c_sep)s+=2;
+  const max=orig?5:7;
+  const threshold=orig?2:3;
+  return{score:s,max,extra:{orig,threshold,version:orig?'Original León 2006':'Modified / Integer version'}};
+},
 interpret(r){
   const s=r.score;
-  if(s<3)return{risk:'Low Risk',mort:'Low probability',color:'#4ADE80',bg:'#4ADE8022',rec:'Invasive candidiasis unlikely. Antifungal prophylaxis not routinely indicated. Continue surveillance cultures and monitor clinical trajectory.'};
-  if(s<5)return{risk:'Moderate Risk',mort:'Moderate probability',color:'#F5A623',bg:'#F5A62322',rec:'Consider empirical antifungal. Fluconazole IV: 400 mg loading dose then 200–400 mg/day (non-critically ill, no prior azole exposure). Fluconazole 800 mg/400 mg if critically ill. Send blood cultures ×2. Reassess daily.'};
-  return{risk:'High Risk',mort:'High probability',color:'#FF5A5A',bg:'#FF5A5A22',rec:'Empirical echinocandin recommended. Caspofungin: 70 mg loading then 50 mg/day. Or micafungin 100 mg/day. Blood cultures ×2, ophthalmology review, echocardiogram if candidaemia confirmed. De-escalate to fluconazole when stable and sensitivities available.'};
+  const orig=r.extra?.orig??true;
+  const threshold=r.extra?.threshold??2;
+  const ver=r.extra?.version??'';
+  const note='['+ver+' | Max: '+(orig?5:7)+' | Threshold: >='+threshold+']';
+
+  if(s<threshold)return{
+    risk:'Low Risk',mort:'Low probability',
+    color:'#4ADE80',bg:'#4ADE8022',
+    rec:note+' Score '+s+' — below threshold. Invasive candidiasis unlikely. No empirical antifungal indicated. Continue surveillance cultures. Reassess daily.',
+    extra:orig?'Original León threshold >=2 (out of 5). Multifocal colonization = +1 pt (original logistic weight).':'Modified version threshold >=3 (out of 7). Multifocal colonization = +3 pts (integer conversion). Both versions: clinical judgement paramount.'
+  };
+  if(orig?s<=3:s<=4)return{
+    risk:'Moderate Risk',mort:'Moderate probability',
+    color:'#F5A623',bg:'#F5A62322',
+    rec:note+' Score '+s+' — at threshold. Consider empirical antifungal. Fluconazole IV: 400 mg loading then 200-400 mg/day (non-critically ill, no prior azole). Fluconazole 800/400 mg if critically ill. Blood cultures x2. Reassess daily.',
+    extra:orig?'Original León 2006: threshold >=2 triggers antifungal consideration.':'Modified version: threshold >=3 triggers antifungal consideration. Note: absolute score differs between versions — use threshold specific to the version being applied.'
+  };
+  return{
+    risk:'High Risk',mort:'High probability',
+    color:'#FF5A5A',bg:'#FF5A5A22',
+    rec:note+' Score '+s+' — high risk. Empirical echinocandin recommended. Caspofungin: 70 mg loading then 50 mg/day. Or micafungin 100 mg/day. Blood cultures x2, ophthalmology review, echocardiogram if candidaemia confirmed. De-escalate to fluconazole when stable and sensitivities available.',
+    extra:orig?'Original León 2006: score >=4 (out of 5) = high risk.':'Modified version: score >=5 (out of 7) = high risk. Important: do not compare absolute scores between versions — use the threshold of the version selected.'
+  };
 }},
 
 // ── CHADS2-VASC ─────────────────────────────────
